@@ -1,0 +1,15 @@
+fastapi
+uvicorn[standard]
+gunicorn
+pydantic
+python-multipart
+requests
+httpx
+networkx
+PyJWT[crypto]
+cryptography
+python-dotenv
+redis
+pytest
+pytest-asyncio
+httpx
