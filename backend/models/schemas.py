@@ -50,6 +50,11 @@ class ReviewResponse(BaseModel):
     findings: list[Finding]
     summary: str
     reviewed_files: list[str]
+    # Plain-English "what does this file do" blurbs powering the Code Explainer UI.
+    # Defaulted so older cached runs and the PR webhook path stay valid.
+    file_summaries: dict[str, str] = Field(default_factory=dict)
+    # Parser-detected functions/classes per file. Deterministic, no LLM cost.
+    file_symbols: dict[str, list[str]] = Field(default_factory=dict)
     metadata: dict[str, Any]
 
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from backend.services.nim_client import NIMClient
+from backend.services.nim_client import get_nim_client
 from backend.services.structure_service import StructureService
 from backend.utils.settings import settings
 from docs.graph_builder import build_dependency_graph, build_execution_flowchart, build_knowledge_graph
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class DocumentationService:
     def __init__(self, rag: RAGPipeline) -> None:
         self.rag = rag
-        self.nim = NIMClient()
+        self.nim = get_nim_client()
         self.structure = StructureService()
 
     async def generate(self, parsed_files: list[dict[str, Any]], persona: str, repo_name: str = "") -> dict[str, Any]:
@@ -142,6 +142,7 @@ REFERENCE FACT SHEET (derive from this, but improve it):
             system_prompt="You are a senior software engineer writing precise, evidence-based repository README files.",
             user_prompt=prompt,
             temperature=0.1,
+            call_kind="docs",
         )
         return generated or base
 

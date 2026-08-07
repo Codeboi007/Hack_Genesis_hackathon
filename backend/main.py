@@ -26,6 +26,7 @@ from backend.models.schemas import (
     WebhookAck,
 )
 from backend.services.doc_service import DocumentationService
+from backend.services.nim_client import get_nim_client
 from backend.services.ingestion import (
     IngestionError,
     cleanup_workspace,
@@ -99,6 +100,7 @@ async def on_startup() -> None:
 
 @app.on_event("shutdown")
 async def on_shutdown() -> None:
+    await get_nim_client().aclose()
     await redis_client.aclose()
 
 

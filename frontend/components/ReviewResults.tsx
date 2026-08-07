@@ -1,3 +1,8 @@
+"use client";
+
+import { useState } from "react";
+
+import { CodeExplainer } from "@/components/CodeExplainer";
 import { Finding, ReviewResponse } from "@/lib/types";
 
 const SEV_ORDER: Record<Finding["severity"], number> = {
@@ -164,7 +169,11 @@ function FileGroup({
   );
 }
 
+type ReviewView = "findings" | "explainer";
+
 export function ReviewResults({ data }: { data: ReviewResponse }) {
+  const [view, setView] = useState<ReviewView>("findings");
+
   const byFile: Record<string, Finding[]> = {};
   for (const finding of data.findings) {
     (byFile[finding.file] ??= []).push(finding);
@@ -172,8 +181,35 @@ export function ReviewResults({ data }: { data: ReviewResponse }) {
 
   const files = Object.keys(byFile).sort();
 
+  const viewSwitch = (
+    <div className="ce-viewswitch">
+      <button
+        className={`ce-viewswitch-btn ${view === "findings" ? "active" : ""}`}
+        onClick={() => setView("findings")}
+      >
+        Findings
+      </button>
+      <button
+        className={`ce-viewswitch-btn ${view === "explainer" ? "active" : ""}`}
+        onClick={() => setView("explainer")}
+      >
+        Code Explainer
+      </button>
+    </div>
+  );
+
+  if (view === "explainer") {
+    return (
+      <section className="grid" style={{ gap: 16 }}>
+        {viewSwitch}
+        <CodeExplainer data={data} />
+      </section>
+    );
+  }
+
   return (
     <section className="grid" style={{ gap: 16 }}>
+      {viewSwitch}
       <div className="card">
         <div
           style={{

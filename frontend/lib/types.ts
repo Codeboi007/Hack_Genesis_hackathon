@@ -34,6 +34,10 @@ export type ReviewResponse = {
   findings: Finding[];
   summary: string;
   reviewed_files: string[];
+  /** Plain-English file blurbs from the backend. May be absent on cached/older runs. */
+  file_summaries?: Record<string, string>;
+  /** Parser-detected functions/classes per file. May be absent on cached/older runs. */
+  file_symbols?: Record<string, string[]>;
   metadata: Record<string, unknown>;
 };
 

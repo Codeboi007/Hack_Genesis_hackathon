@@ -3,13 +3,13 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from backend.services.nim_client import NIMClient
+from backend.services.nim_client import get_nim_client
 from backend.utils.settings import settings
 
 
 class StructureService:
     def __init__(self) -> None:
-        self.nim = NIMClient()
+        self.nim = get_nim_client()
 
     async def derive(self, parsed_files: list[dict[str, Any]]) -> dict[str, Any]:
         local = self._local_structure(parsed_files)
@@ -34,6 +34,7 @@ class StructureService:
             system_prompt="You are a code structure analyst. Return JSON only.",
             user_prompt=prompt,
             temperature=0.1,
+            call_kind="structure",
         )
 
         parsed = self._parse_json(out) if out else None

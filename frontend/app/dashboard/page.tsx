@@ -17,7 +17,7 @@ import {
 import { DocsResponse, Persona, ReviewResponse } from "@/lib/types";
 import { GraphView } from "@/src/components/GraphView";
 import { TreeView } from "@/src/components/TreeView";
-import { createVisualizationBundle, getConnectedNodeIds } from "@/src/utils/graphAdapter";
+import { createVisualizationBundle } from "@/src/utils/graphAdapter";
 
 const FaultyTerminal = dynamic(() => import("@/app/components/FaultyTerminal"), {
   ssr: false,
@@ -33,7 +33,7 @@ const DEMO_REPO = "https://github.com/ShUbHaMHiReMaT/-GoGemba-";
 
 type ResultTab = "review" | "docs" | "graphs";
 type InputMode = "repo" | "zip";
-type VisualizationMode = "split" | "graph" | "tree";
+type VisualizationMode = "graph" | "tree";
 
 function LoadingSkeleton() {
   return (
@@ -108,46 +108,17 @@ export default function DashboardPage() {
 
   const [resultTab, setResultTab] = useState<ResultTab>("review");
   const [visualizationMode, setVisualizationMode] =
-    useState<VisualizationMode>("split");
+    useState<VisualizationMode>("graph");
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [graphExpanded, setGraphExpanded] = useState(false);
-  const [treeExpanded, setTreeExpanded] = useState(false);
 
   const visualization = useMemo(
     () => (docsData ? createVisualizationBundle(docsData, "dependency_graph") : null),
     [docsData],
   );
 
-  const selectedNode = useMemo(
-    () =>
-      visualization?.graph.nodes.find((node) => node.id === selectedNodeId) ??
-      null,
-    [selectedNodeId, visualization],
-  );
-
-  const connectedNodeIds = useMemo(
-    () =>
-      visualization
-        ? getConnectedNodeIds(visualization.graph, selectedNodeId)
-        : new Set<string>(),
-    [selectedNodeId, visualization],
-  );
-
   useEffect(() => {
     setSelectedNodeId(null);
   }, [docsData?.run_id]);
-
-  useEffect(() => {
-    if (visualizationMode === "tree") {
-      setGraphExpanded(false);
-    }
-  }, [visualizationMode]);
-
-  useEffect(() => {
-    if (visualizationMode === "graph") {
-      setTreeExpanded(false);
-    }
-  }, [visualizationMode]);
 
   async function run(mode: "repo" | "zip") {
     if (mode === "repo" && !repoUrl) {
@@ -610,168 +581,44 @@ export default function DashboardPage() {
                 {resultTab === "graphs" &&
                   (docsData ? (
                     <div className="grid" style={{ gap: 16 }}>
-                      <div className="viz-toolbar card">
-                        <div className="viz-toolbar-row">
-                          <button className="btn btn-sm btn-primary" type="button">
-                            Dependency
+                      <div className="ce-viewswitch">
+                        {(
+                          [
+                            ["graph", "Graph"],
+                            ["tree", "Tree"],
+                          ] as Array<[VisualizationMode, string]>
+                        ).map(([mode, label]) => (
+                          <button
+                            key={mode}
+                            className={`ce-viewswitch-btn ${
+                              visualizationMode === mode ? "active" : ""
+                            }`}
+                            onClick={() => setVisualizationMode(mode)}
+                          >
+                            {label}
                           </button>
-                        </div>
-                        <div className="viz-toolbar-row">
-                          {([
-                            ["split", "Split View"],
-                            ["graph", "Graph View"],
-                            ["tree", "Tree View"],
-                          ] as Array<[VisualizationMode, string]>).map(
-                            ([mode, label]) => (
-                              <button
-                                key={mode}
-                                className={`btn btn-sm ${
-                                  visualizationMode === mode
-                                    ? "btn-primary"
-                                    : "btn-secondary"
-                                }`}
-                                onClick={() => setVisualizationMode(mode)}
-                              >
-                                {label}
-                              </button>
-                            ),
-                          )}
-                        </div>
+                        ))}
                       </div>
 
-                      <div className="viz-stats-grid">
-                        <div className="viz-stat-card">
-                          <span>Files mapped</span>
-                          <strong>{visualization?.stats.fileCount ?? 0}</strong>
-                        </div>
-                        <div className="viz-stat-card">
-                          <span>Folders</span>
-                          <strong>{visualization?.stats.folderCount ?? 0}</strong>
-                        </div>
-                        <div className="viz-stat-card">
-                          <span>Edges</span>
-                          <strong>{visualization?.stats.edgeCount ?? 0}</strong>
-                        </div>
-                        <div className="viz-stat-card">
-                          <span>Hotspot</span>
-                          <strong>
-                            {selectedNode?.label ??
-                              visualization?.stats.densestNodeId
-                                ?.split("/")
-                                .pop() ??
-                              "n/a"}
-                          </strong>
-                        </div>
-                      </div>
+                      {visualization && visualizationMode === "graph" && (
+                        <GraphView
+                          title="Dependency Graph"
+                          graph={visualization.graph}
+                          selectedNodeId={selectedNodeId}
+                          onNodeSelect={setSelectedNodeId}
+                        />
+                      )}
 
-                      <div
-                        className={`viz-shell mode-${visualizationMode} ${
-                          graphExpanded ? "expanded-graph" : ""
-                        } ${
-                          treeExpanded ? "expanded-tree" : ""
-                        }`}
-                      >
-                        {visualization && visualizationMode !== "graph" && (
+                      {visualization && visualizationMode === "tree" && (
+                        <div className="viz-shell mode-tree">
                           <TreeView
                             tree={visualization.tree}
                             graph={visualization.graph}
                             selectedNodeId={selectedNodeId}
                             onNodeSelect={setSelectedNodeId}
-                            isExpanded={treeExpanded}
-                            onToggleExpand={() =>
-                              setTreeExpanded((current) => !current)
-                            }
                           />
-                        )}
-
-                        {visualization && visualizationMode !== "tree" && (
-                          <GraphView
-                            title={
-                              "Dependency Graph"
-                            }
-                            graph={visualization.graph}
-                            selectedNodeId={selectedNodeId}
-                            onNodeSelect={setSelectedNodeId}
-                            isExpanded={graphExpanded}
-                            onToggleExpand={() =>
-                              setGraphExpanded((current) => !current)
-                            }
-                          />
-                        )}
-
-                        <aside className="viz-panel detail-panel">
-                          <div className="viz-panel-header">
-                            <div>
-                              <h3>Inspector</h3>
-                              <p>
-                                Selection-aware context for the active graph.
-                              </p>
-                            </div>
-                          </div>
-
-                          {selectedNode ? (
-                            <div className="detail-stack">
-                              <div className="detail-card">
-                                <span className="detail-kicker">
-                                  Selected file
-                                </span>
-                                <strong>{selectedNode.label}</strong>
-                                <code>{selectedNode.path}</code>
-                              </div>
-                              <div className="detail-grid">
-                                <div className="detail-metric">
-                                  <span>Group</span>
-                                  <strong>{selectedNode.group}</strong>
-                                </div>
-                                <div className="detail-metric">
-                                  <span>Inbound</span>
-                                  <strong>{selectedNode.inbound}</strong>
-                                </div>
-                                <div className="detail-metric">
-                                  <span>Outbound</span>
-                                  <strong>{selectedNode.outbound}</strong>
-                                </div>
-                                <div className="detail-metric">
-                                  <span>Neighbors</span>
-                                  <strong>
-                                    {Math.max(connectedNodeIds.size - 1, 0)}
-                                  </strong>
-                                </div>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="detail-empty">
-                              Select a file in the graph or tree to inspect its
-                              dependency neighborhood.
-                            </div>
-                          )}
-
-                          <div className="detail-stack">
-                            <div className="detail-card">
-                              <span className="detail-kicker">Run metadata</span>
-                              <strong>{docsData.persona}</strong>
-                              <span>
-                                {docsData.doc_rot_detected
-                                  ? "README was regenerated after doc-rot detection."
-                                  : "Documentation generated from the current backend pipeline."}
-                              </span>
-                            </div>
-                            <div className="detail-card">
-                              <span className="detail-kicker">
-                                Available outputs
-                              </span>
-                              <span>
-                                {Object.keys(docsData.modular_docs ?? {}).length}{" "}
-                                modular docs
-                              </span>
-                              <span>
-                                {Object.keys(docsData.docstrings ?? {}).length}{" "}
-                                docstring files
-                              </span>
-                            </div>
-                          </div>
-                        </aside>
-                      </div>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <EmptyState tab="graphs" />

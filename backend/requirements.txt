@@ -1,5 +1,11 @@
 fastapi
 uvicorn[standard]
+# Orchestration for the multi-agent review pipeline (backend/services/review_graph.py).
+# LangGraph only: conditional routing, parallel fan-out, state merging. All LLM HTTP
+# still goes through backend/services/nim_client.py. langchain-core is LangGraph's
+# own requirement — no LangChain abstractions are used.
+langgraph>=0.2,<2
+langchain-core>=0.3,<2
 gunicorn
 pydantic
 python-multipart
