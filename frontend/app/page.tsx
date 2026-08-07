@@ -1,513 +1,504 @@
 "use client";
 
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import { useEffect, useRef } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
-const FaultyTerminal = dynamic(() => import("./components/FaultyTerminal"), {
-  ssr: false,
-});
+import "./landing.css";
 
 gsap.registerPlugin(ScrollTrigger);
 
-/* ── Palette ─────────────────────────────────────────────── */
-// Mint green terminal theme derived from FaultyTerminal tint #A7EF9E
-const C = {
-  bg: "#050d05",
-  bg2: "#0a160a",
-  card: "#0d1a0d",
-  border: "#1a3a1a",
-  border2: "#122012",
-  mint: "#A7EF9E",
-  mintDim: "#6bc462",
-  cyan: "#5ef8d0",
-  amber: "#f0c040",
-  red: "#ff5f5f",
-  text: "#d4f0d4",
-  muted: "#6a9a6a",
-} as const;
+/* ── Content ──────────────────────────────────────────────────────────── */
 
-/* ── Data ────────────────────────────────────────────────── */
-const ISSUES = [
-  { sev: "CRIT", color: C.red, bg: "rgba(255,95,95,0.10)", file: "db/queries.ts:47", msg: "SQL Injection — raw string in query builder" },
-  { sev: "WARN", color: C.amber, bg: "rgba(240,192,64,0.09)", file: "api/upload.ts:12", msg: "Missing file-size & MIME validation — DoS risk" },
-  { sev: "PERF", color: C.cyan, bg: "rgba(94,248,208,0.07)", file: "hooks/useData.ts:88", msg: "N+1 query inside render loop — add useMemo" },
+const SPEC = [
+  { k: "Agents", v: "06 parallel" },
+  { k: "Surfaces", v: "Review · Docs · Graph" },
+  { k: "Input", v: "Repo URL / ZIP" },
 ];
 
-const FEATURES = [
-  { icon: "🔬", color: C.red, title: "Security Review", desc: "Detects injections, secrets exposure, auth flaws and 50+ vulnerability patterns before merge." },
-  { icon: "📡", color: C.mint, title: "Auto Docs", desc: "Generates README, docstrings, onboarding guides and dependency graphs from your source." },
-  { icon: "🧠", color: C.cyan, title: "Persona-Aware", desc: "Adapts depth and tone per reviewer role — intern, senior engineer, or architect." },
-  { icon: "⚡", color: C.amber, title: "Parallel Agents", desc: "Six specialised agents fire concurrently. Results in under 2 seconds on any PR." },
-  { icon: "🗺️", color: C.mintDim, title: "Graph Visuals", desc: "Interactive dependency graphs rendered from live codebase structure analysis." },
-  { icon: "🔄", color: C.cyan, title: "PR Integration", desc: "Posts inline comments directly on GitHub Pull Requests with zero manual steps." },
+/** Diff sample. Deliberately mundane code — the point is what ARGUS notices. */
+const SCAN_LINES = [
+  { n: "41", t: "async def create_session(user_id: str, raw: str):", k: "" },
+  { n: "42", t: "    query = f\"SELECT * FROM users WHERE id = '{user_id}'\"", k: "del" },
+  { n: "43", t: "    query = \"SELECT * FROM users WHERE id = %s\"", k: "add" },
+  { n: "44", t: "    row = await db.fetch(query, user_id)", k: "add" },
+  { n: "45", t: "    token = hashlib.md5(raw.encode()).hexdigest()", k: "del" },
+  { n: "46", t: "    token = secrets.token_urlsafe(32)", k: "add" },
+  { n: "47", t: "    return Session(user=row, token=token)", k: "" },
+];
+
+const FINDINGS = [
+  {
+    sev: "critical",
+    cls: "crit",
+    path: "api/sessions.py:42",
+    title: "Interpolated identifier reaches the query builder",
+    body: "The user identifier is formatted directly into SQL. Any caller controlling that value controls the statement. Parameterise the query and let the driver bind the value.",
+  },
+  {
+    sev: "high",
+    cls: "high",
+    path: "api/sessions.py:45",
+    title: "Session token derived from an unsuitable digest",
+    body: "MD5 is fast and collision-prone, which is the opposite of what a session token needs. Generate tokens from a CSPRNG instead of hashing user input.",
+  },
+  {
+    sev: "clean",
+    cls: "pass",
+    path: "api/deps.py",
+    title: "No findings above the confidence floor",
+    body: "Six agents reported nothing actionable here. ARGUS suppresses low-confidence noise rather than padding the report — an empty section is a real result.",
+  },
+];
+
+const AGENTS = [
+  { n: "01", name: "Security", tag: "Injection · Secrets", desc: "Hardcoded credentials, injection paths, unsafe execution, weak crypto and auth handling." },
+  { n: "02", name: "Bug & Safety", tag: "Correctness", desc: "Swallowed exceptions, unhandled null paths, dynamic evaluation and silent failure modes." },
+  { n: "03", name: "Performance", tag: "Hot paths", desc: "Repeated I/O inside loops, avoidable full scans, and nested iteration over large inputs." },
+  { n: "04", name: "Architecture", tag: "Boundaries", desc: "God files, tangled layering, and business logic leaking into transport or UI code." },
+  { n: "05", name: "Readability", tag: "Maintainability", desc: "Undocumented non-trivial functions, misleading names, and control flow that blocks review." },
+  { n: "06", name: "Accessibility", tag: "Interface", desc: "Missing alternative text, non-semantic interactive elements, and keyboard traps in markup." },
 ];
 
 const STEPS = [
-  { n: "01", label: "Connect Repo", desc: "Paste your GitHub repo URL. No OAuth, no permissions dance." },
-  { n: "02", label: "Select PR", desc: "Point to any pull request or paste raw code directly." },
-  { n: "03", label: "Agents Fire", desc: "Six AI agents analyse in parallel — security, perf, docs, style, a11y, architecture." },
-  { n: "04", label: "Instant Results", desc: "Get inline findings, docs, and graphs in under 2 seconds." },
+  { n: "01", h: "Point at a repository", p: "A GitHub URL or a ZIP upload. ARGUS pulls a snapshot, parses every supported source file, and indexes it for retrieval. Nothing is installed and no OAuth dance is required." },
+  { n: "02", h: "Route before spending", p: "The change is classified first. A documentation-only edit skips the language models entirely; a small diff takes a single compact pass. Work is only sent to an agent that can act on it." },
+  { n: "03", h: "Run agents in parallel", p: "Selected agents execute concurrently rather than in sequence, alongside structure analysis and file summarisation. One slow agent no longer holds the others hostage." },
+  { n: "04", h: "Read the report", p: "Findings are deduplicated, ranked by severity and confidence, then written in the register of the persona you chose — from a first-week intern to a production backend engineer." },
 ];
 
-/* ── Page ────────────────────────────────────────────────── */
+const OUTPUTS = [
+  { k: "Surface 01", h: "Review", p: "Ranked findings grouped by file, each with evidence, a severity, a confidence score, and the agent that raised it." },
+  { k: "Surface 02", h: "Code Explainer", p: "A plain-English health score, per-file summaries, and expandable walkthroughs for anyone who does not already know the codebase." },
+  { k: "Surface 03", h: "Documentation", p: "README, per-module documentation, docstrings, and an onboarding guide generated from the parsed source rather than guessed." },
+  { k: "Surface 04", h: "Dependency graph", p: "A force-directed map of how modules actually import one another. Drag nodes, isolate a layer, and trace a file's neighbourhood." },
+];
+
+/* ── Scramble device ──────────────────────────────────────────────────── */
+
+const GLYPHS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/<>[]{}()=+*#@$%&_-";
+
+/**
+ * Resolve an element's text from noise to its real value.
+ *
+ * The visual metaphor for the whole product: unreadable input becoming legible
+ * output. Runs once per element, on scroll entry.
+ */
+function decode(el: HTMLElement, duration = 900) {
+  const final = el.dataset.text ?? el.textContent ?? "";
+  const start = performance.now();
+  let frame = 0;
+
+  const tick = (now: number) => {
+    const progress = Math.min(1, (now - start) / duration);
+    // Ease-out so the last characters settle rather than snap.
+    const settled = Math.floor(final.length * (1 - Math.pow(1 - progress, 3)));
+    let out = final.slice(0, settled);
+    for (let i = settled; i < final.length; i += 1) {
+      out += final[i] === " " ? " " : GLYPHS[(frame + i * 7) % GLYPHS.length];
+    }
+    el.textContent = out;
+    frame += 1;
+    if (progress < 1) requestAnimationFrame(tick);
+    else el.textContent = final;
+  };
+  requestAnimationFrame(tick);
+}
+
+/* ── Page ─────────────────────────────────────────────────────────────── */
+
 export default function HomePage() {
-  const heroRef = useRef<HTMLDivElement>(null);
-  const demoRef = useRef<HTMLDivElement>(null);
-  const featRef = useRef<HTMLElement>(null);
-  const stepsRef = useRef<HTMLElement>(null);
+  const root = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    /* Hero stagger */
-    if (heroRef.current) {
-      gsap.fromTo(Array.from(heroRef.current.children),
-        { opacity: 0, y: 40 },
-        { opacity: 1, y: 0, stagger: 0.12, duration: 0.85, ease: "power3.out", delay: 0.3 }
-      );
+    const scope = root.current;
+    if (!scope) return;
+
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduced) return;
+
+    let ctx: gsap.Context | null = null;
+
+    const build = () => {
+      ctx = buildTimeline(scope);
+    };
+
+    // Browsers pause requestAnimationFrame in background tabs, which would strand
+    // every gsap.from() at its start value — a hero that is simply never drawn for
+    // anyone who opens the page in a new tab. Wait until the page is actually seen.
+    if (document.visibilityState === "visible") {
+      build();
+      return () => ctx?.revert();
     }
-    /* Demo */
-    if (demoRef.current) {
-      gsap.fromTo(demoRef.current,
-        { opacity: 0, y: 40 },
-        {
-          opacity: 1, y: 0, duration: 0.7, ease: "power3.out",
-          scrollTrigger: { trigger: demoRef.current, start: "top 82%" }
-        });
-      gsap.fromTo(demoRef.current.querySelectorAll(".irow"),
-        { opacity: 0, x: -18 },
-        {
-          opacity: 1, x: 0, stagger: 0.13, duration: 0.45, ease: "power2.out",
-          scrollTrigger: { trigger: demoRef.current, start: "top 76%" }
-        });
-    }
-    /* Features */
-    if (featRef.current) {
-      gsap.fromTo(featRef.current.querySelectorAll(".fc"),
-        { opacity: 0, y: 44, scale: 0.95 },
-        {
-          opacity: 1, y: 0, scale: 1, stagger: 0.1, duration: 0.55, ease: "power3.out",
-          scrollTrigger: { trigger: featRef.current, start: "top 84%" }
-        });
-    }
-    /* Steps */
-    if (stepsRef.current) {
-      gsap.fromTo(stepsRef.current.querySelectorAll(".step"),
-        { opacity: 0, x: -30 },
-        {
-          opacity: 1, x: 0, stagger: 0.15, duration: 0.6, ease: "power3.out",
-          scrollTrigger: { trigger: stepsRef.current, start: "top 84%" }
-        });
-    }
-    return () => ScrollTrigger.getAll().forEach((trigger) => trigger.kill());
+
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      document.removeEventListener("visibilitychange", onVisible);
+      build();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      ctx?.revert();
+    };
   }, []);
 
   return (
+    <div className="lp" ref={root}>
+      <PageBody />
+    </div>
+  );
+}
+
+/** All scroll choreography. Split out so the effect above stays readable. */
+function buildTimeline(scope: HTMLElement) {
+  return gsap.context(() => {
+      /* Hero — masked lines rise in sequence. */
+      gsap.from("[data-hero-line] > span", {
+        yPercent: 108,
+        duration: 1.15,
+        ease: "power4.out",
+        stagger: 0.09,
+        delay: 0.12,
+      });
+
+      gsap.from("[data-hero-fade]", {
+        opacity: 0,
+        y: 22,
+        duration: 0.85,
+        ease: "power3.out",
+        stagger: 0.1,
+        delay: 0.55,
+      });
+
+      /* Generic fade-up for anything marked as a reveal. */
+      gsap.utils.toArray<HTMLElement>("[data-reveal]").forEach((el) => {
+        gsap.from(el, {
+          opacity: 0,
+          y: 30,
+          duration: 0.8,
+          ease: "power3.out",
+          scrollTrigger: { trigger: el, start: "top 88%", once: true },
+        });
+      });
+
+      /* Row groups stagger as the group enters. */
+      gsap.utils.toArray<HTMLElement>("[data-stagger]").forEach((group) => {
+        gsap.from(group.children, {
+          opacity: 0,
+          y: 24,
+          duration: 0.65,
+          ease: "power3.out",
+          stagger: 0.07,
+          scrollTrigger: { trigger: group, start: "top 85%", once: true },
+        });
+      });
+
+      /* Section headings wipe up from a mask. */
+      gsap.utils.toArray<HTMLElement>("[data-mask] > span").forEach((line) => {
+        gsap.from(line, {
+          yPercent: 105,
+          duration: 1,
+          ease: "power4.out",
+          scrollTrigger: { trigger: line, start: "top 92%", once: true },
+        });
+      });
+
+      /* Decode: scramble on entry, then resolve. */
+      gsap.utils.toArray<HTMLElement>("[data-decode]").forEach((el, i) => {
+        el.dataset.text = el.textContent ?? "";
+        ScrollTrigger.create({
+          trigger: el,
+          start: "top 92%",
+          once: true,
+          onEnter: () => window.setTimeout(() => decode(el), i * 55),
+        });
+      });
+
+      /* Diff rows sweep in as the scan panel is read. */
+      gsap.from("[data-scan] .lp-scan-line", {
+        opacity: 0,
+        x: -14,
+        duration: 0.45,
+        ease: "power2.out",
+        stagger: 0.06,
+        scrollTrigger: { trigger: "[data-scan]", start: "top 80%", once: true },
+      });
+
+      /* Closing wordmark drifts slightly against the scroll. */
+      gsap.to("[data-mark]", {
+        yPercent: -8,
+        ease: "none",
+        scrollTrigger: {
+          trigger: "[data-mark]",
+          start: "top bottom",
+          end: "bottom bottom",
+          scrub: 0.6,
+        },
+      });
+  }, scope);
+}
+
+/** Static markup. Motion is attached by buildTimeline via data-attributes. */
+function PageBody() {
+  return (
     <>
-      <style>{`
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        html { scroll-behavior: smooth; }
-        body {
-          background: ${C.bg};
-          color: ${C.text};
-          font-family: 'Space Grotesk', system-ui, sans-serif;
-          overflow-x: hidden;
-          -webkit-font-smoothing: antialiased;
-        }
-        a { color: inherit; text-decoration: none; }
-
-        @keyframes mintpulse {
-          0%,100% { box-shadow: 0 0 16px ${C.mint}44; }
-          50%      { box-shadow: 0 0 36px ${C.mint}88, 0 0 72px ${C.mint}22; }
-        }
-        @keyframes scantick {
-          0%   { transform: translateY(-100%); }
-          100% { transform: translateY(100vh); }
-        }
-        @keyframes blink {
-          0%,100% { opacity: 1; } 50% { opacity: 0; }
-        }
-        @keyframes glitch1 {
-          0%,89%,100% { transform: none; clip-path: none; }
-          90% { transform: translate(-2px,1px); clip-path: polygon(0 15%,100% 15%,100% 35%,0 35%); }
-          95% { transform: translate(2px,-1px); clip-path: polygon(0 60%,100% 60%,100% 80%,0 80%); }
-        }
-        @keyframes glitch2 {
-          0%,89%,100% { transform: none; clip-path: none; }
-          90% { transform: translate(2px,-1px); clip-path: polygon(0 55%,100% 55%,100% 75%,0 75%); }
-          95% { transform: translate(-2px,1px); clip-path: polygon(0 10%,100% 10%,100% 30%,0 30%); }
-        }
-
-        .glitch-wrap { position: relative; display: inline-block; }
-        .glitch-wrap::before, .glitch-wrap::after {
-          content: attr(data-text);
-          position: absolute; top: 0; left: 0; width: 100%;
-          background: inherit; -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent; background-clip: text;
-        }
-        .glitch-wrap::before { color: ${C.red};  animation: glitch1 4s infinite; }
-        .glitch-wrap::after  { color: ${C.cyan}; animation: glitch2 4s infinite 0.15s; }
-
-        .mint-btn {
-          display: inline-flex; align-items: center; gap: 8px;
-          padding: 14px 32px; border: 1.5px solid ${C.mint};
-          border-radius: 4px; font-weight: 700; font-size: 15px;
-          color: ${C.mint}; background: transparent; cursor: pointer;
-          letter-spacing: .04em; transition: all 0.2s;
-          animation: mintpulse 2.8s ease infinite;
-          font-family: 'Space Grotesk', sans-serif;
-        }
-        .mint-btn:hover {
-          background: ${C.mint}18; transform: scale(1.05);
-          box-shadow: 0 0 48px ${C.mint}55;
-        }
-        .ghost-btn {
-          display: inline-flex; align-items: center; gap: 8px;
-          padding: 14px 28px; border: 1.5px solid ${C.border};
-          border-radius: 4px; font-size: 15px; font-weight: 600;
-          color: ${C.muted}; background: transparent; cursor: pointer;
-          transition: all 0.2s; font-family: 'Space Grotesk', sans-serif;
-        }
-        .ghost-btn:hover { border-color: ${C.mint}; color: ${C.mint}; box-shadow: 0 0 18px ${C.mint}22; }
-
-        .fc {
-          background: ${C.card};
-          border: 1px solid ${C.border};
-          border-radius: 10px; padding: 28px; cursor: default;
-          transition: transform .25s, box-shadow .25s, border-color .25s;
-        }
-        .fc:hover { transform: translateY(-7px); }
-
-        .irow {
-          display: flex; align-items: flex-start; gap: 12px;
-          padding: 12px 20px; border-bottom: 1px solid ${C.border2};
-          font-family: 'JetBrains Mono', monospace; font-size: 12.5px;
-        }
-        .irow:last-child { border-bottom: none; }
-
-        .step {
-          display: flex; gap: 20px; align-items: flex-start;
-          padding: 24px 0; border-bottom: 1px solid ${C.border2};
-        }
-        .step:last-child { border-bottom: none; }
-      `}</style>
-
-      {/* ── Scanline overlay ── */}
-      <div aria-hidden style={{
-        position: "fixed", inset: 0, zIndex: 1, pointerEvents: "none",
-        background: `repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.035) 2px,rgba(0,0,0,0.035) 4px)`
-      }} />
-      <div aria-hidden style={{
-        position: "fixed", top: 0, left: 0, right: 0, height: 2, zIndex: 2,
-        pointerEvents: "none", opacity: 0.3,
-        background: `linear-gradient(90deg,transparent,${C.mint}55,transparent)`,
-        animation: "scantick 7s linear infinite"
-      }} />
-
-      {/* ══════ NAV ══════ */}
-      <nav style={{
-        position: "sticky", top: 0, zIndex: 100,
-        display: "flex", alignItems: "center",
-        padding: "14px 32px",
-        backdropFilter: "blur(16px)",
-        background: `rgba(5,13,5,0.85)`,
-        borderBottom: `1px solid ${C.border}`
-      }}>
-        <span style={{
-          display: "inline-flex", alignItems: "center", gap: 8,
-          fontWeight: 800, fontSize: 18, letterSpacing: ".04em",
-          fontFamily: "'JetBrains Mono',monospace",
-          color: C.mint,
-          textShadow: `0 0 16px ${C.mint}88`
-        }}>
-          <img
-            src="/icon.svg"
-            alt="Cypher AI logo"
-            width={18}
-            height={18}
-            style={{ display: "block" }}
-          />
-          Cypher<span style={{ color: C.muted }}>AI</span>
-        </span>
-        <div style={{ flex: 1 }} />
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <a href="#features" className="ghost-btn" style={{ padding: "8px 18px", fontSize: 13 }}>Features</a>
-          <Link href="/dashboard" className="mint-btn" style={{ padding: "9px 22px", fontSize: 13, animation: "none" }}>
-            Open Dashboard →
+      {/* ── Nav ── */}
+      <nav className="lp-nav">
+        <Link href="/" className="lp-wordmark">
+          <span className="lp-eye" aria-hidden />
+          ARGUS
+        </Link>
+        <span className="lp-nav-spacer" />
+        <div className="lp-nav-links">
+          <a href="#agents" className="lp-nav-link hide-sm">Agents</a>
+          <a href="#pipeline" className="lp-nav-link hide-sm">Pipeline</a>
+          <a href="#output" className="lp-nav-link hide-sm">Output</a>
+          <Link href="/dashboard" className="btn btn-sm" id="lp-nav-cta">
+            Open Dashboard
           </Link>
         </div>
       </nav>
 
-      {/* ══════ HERO ══════ */}
-      <section style={{ position: "relative", zIndex: 2, overflow: "hidden" }}>
-        {/* FaultyTerminal background */}
-        <div style={{ position: "absolute", inset: 0, zIndex: 0 }}>
-          <FaultyTerminal
-            scale={1.5}
-            gridMul={[2, 1]}
-            digitSize={1.2}
-            timeScale={0.5}
-            scanlineIntensity={0.5}
-            glitchAmount={1}
-            flickerAmount={1}
-            noiseAmp={1}
-            chromaticAberration={0}
-            dither={0}
-            curvature={0.1}
-            tint="#A7EF9E"
-            mouseReact
-            mouseStrength={0.5}
-            pageLoadAnimation
-            brightness={0.6}
-            style={{ opacity: 0.55 }}
-          />
-          {/* Dark gradient over terminal so text is readable */}
-          <div style={{
-            position: "absolute", inset: 0,
-            background: `linear-gradient(to bottom, rgba(5,13,5,0.55) 0%, rgba(5,13,5,0.3) 50%, rgba(5,13,5,0.92) 100%)`
-          }} />
+      {/* ── Hero ── */}
+      <header className="shell lp-hero">
+        <span className="lp-hero-eyebrow" data-decode>
+          Autonomous Review for GitHub Understanding &amp; Security
+        </span>
+
+        <h1 className="display">
+          <span className="lp-mask" data-hero-line><span>A hundred eyes</span></span>
+          <span className="lp-mask" data-hero-line><span>on every <em className="serif">commit</em>.</span></span>
+        </h1>
+
+        <div className="lp-hero-foot">
+          <div>
+            <p className="lede" data-hero-fade>
+              ARGUS reads a repository the way a senior engineer would. Six specialised
+              agents run in parallel to produce security findings, review comments, and
+              documentation grounded in the code that is actually there.
+            </p>
+            <div className="lp-cta-row" data-hero-fade>
+              <Link href="/dashboard" className="btn" id="lp-hero-cta">
+                Run an analysis
+              </Link>
+              <a href="#pipeline" className="btn btn-secondary" id="lp-how-cta">
+                How it works
+              </a>
+            </div>
+          </div>
+
+          <dl className="lp-spec" data-hero-fade>
+            {SPEC.map((s) => (
+              <div key={s.k}>
+                <dt>{s.k}</dt>
+                <dd>{s.v}</dd>
+              </div>
+            ))}
+          </dl>
         </div>
+      </header>
 
-        {/* Hero content */}
-        <div ref={heroRef} style={{
-          position: "relative", zIndex: 2,
-          maxWidth: 900, margin: "0 auto",
-          padding: "140px 32px 120px",
-          display: "flex", flexDirection: "column", alignItems: "flex-start"
-        }}>
-          {/* Badge */}
-          <div style={{
-            display: "inline-flex", alignItems: "center", gap: 8,
-            padding: "5px 14px",
-            border: `1px solid ${C.mint}44`,
-            borderRadius: 999, fontSize: 11, fontWeight: 700,
-            color: C.mint, marginBottom: 28,
-            letterSpacing: ".08em", textTransform: "uppercase",
-            background: `rgba(167,239,158,0.08)`,
-            fontFamily: "'JetBrains Mono',monospace"
-          }}>
-            <span style={{
-              width: 7, height: 7, borderRadius: "50%", background: C.mint,
-              boxShadow: `0 0 8px ${C.mint}`, display: "inline-block",
-              animation: "blink 1.4s ease infinite"
-            }} />
-            Multi-Agent AI · v2.0 · Now Live
+      {/* ── 01 · The read ── */}
+      <section className="lp-section tinted">
+        <div className="shell">
+          <div className="sec-mark" data-reveal>
+            <span className="sec-mark-num">01</span>
+            <span className="sec-mark-line" />
+            <span className="sec-mark-name">The read</span>
           </div>
 
-          {/* Headline */}
-          <h1
-            data-text="AI That Understands Your Codebase"
-            className="glitch-wrap"
-            style={{
-              fontSize: "clamp(2.6rem,5.5vw,4.4rem)",
-              fontWeight: 800, lineHeight: 1.06,
-              letterSpacing: "-0.03em", marginBottom: 22,
-              background: `linear-gradient(130deg,#ffffff 0%,${C.text} 35%,${C.mint} 70%,${C.cyan} 100%)`,
-              WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text"
-            }}
-          >
-            AI That Understands<br />Your Codebase
-          </h1>
+          <div className="lp-split">
+            <div className="lp-split-sticky">
+              <h2 className="h2" data-mask>
+                <span>Most review tools</span>
+              </h2>
+              <h2 className="h2" data-mask>
+                <span>skim. ARGUS <em className="serif">reads</em>.</span>
+              </h2>
+            </div>
 
-          <p style={{
-            fontSize: "1.12rem", color: C.muted, lineHeight: 1.75,
-            maxWidth: 580, marginBottom: 38
-          }}>
-            Multi-agent AI for{" "}
-            <span style={{ color: C.mint, fontWeight: 600 }}>code review</span>,{" "}
-            <span style={{ color: C.cyan, fontWeight: 600 }}>documentation</span>, and{" "}
-            <span style={{ color: C.amber, fontWeight: 600 }}>deep code understanding</span>.
-            Six specialised agents. One unified pipeline.
-          </p>
+            <div className="lp-body" data-reveal>
+              <p>
+                A diff on its own is not enough context to judge a change. ARGUS parses the
+                whole snapshot first — every function, class and import — then indexes it so
+                each agent can retrieve the code that matters to <strong>its</strong> question
+                rather than reading the same oversized blob.
+              </p>
+              <p>
+                That context is what separates a real finding from a guess. Every item in the
+                report cites a file and a line, carries a confidence score, and names the agent
+                that raised it. Anything below the confidence floor is discarded rather than
+                shipped as filler.
+              </p>
 
-          {/* CTAs */}
-          <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 40 }}>
-            <Link href="/dashboard" className="mint-btn" id="lp-hero-cta">🚀 Open Dashboard</Link>
-            <a href="#how" className="ghost-btn" id="lp-how-cta">See How It Works ↓</a>
+              <div className="lp-scan" data-scan>
+                <div className="lp-scan-bar">
+                  <span className="lp-scan-dot" />
+                  api/sessions.py · reviewed
+                </div>
+                <div className="lp-scan-body">
+                  {SCAN_LINES.map((l) => (
+                    <div key={l.n} className={`lp-scan-line ${l.k}`}>
+                      <span className="lp-scan-num">{l.n}</span>
+                      <span>{l.t}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="lp-scan-foot">
+                  <span>2 replaced</span>
+                  <span>1 critical</span>
+                  <span>1 high</span>
+                  <span style={{ marginLeft: "auto" }}>6 agents</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── 02 · Findings ── */}
+      <section className="lp-section">
+        <div className="shell">
+          <div className="sec-mark" data-reveal>
+            <span className="sec-mark-num">02</span>
+            <span className="sec-mark-line" />
+            <span className="sec-mark-name">Findings</span>
           </div>
 
-          {/* Agent pills */}
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {[
-              { c: C.red, l: "Security" },
-              { c: C.amber, l: "Performance" },
-              { c: C.mint, l: "Documentation" },
-              { c: C.cyan, l: "Architecture" },
-              { c: C.mintDim, l: "Readability" },
-              { c: "#bc8cff", l: "Accessibility" },
-            ].map(({ c, l }) => (
-              <span key={l} style={{
-                display: "inline-flex", alignItems: "center", gap: 6,
-                padding: "5px 12px",
-                background: "rgba(167,239,158,0.04)",
-                border: `1px solid ${C.border}`,
-                borderRadius: 999, fontSize: 11, fontWeight: 700, color: C.muted,
-                fontFamily: "'JetBrains Mono',monospace"
-              }}>
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: c, boxShadow: `0 0 5px ${c}` }} />
-                {l} Agent
-              </span>
+          <h2 className="h2" style={{ marginBottom: "clamp(28px,4vw,52px)" }} data-mask>
+            <span>Evidence, not <em className="serif">opinion</em>.</span>
+          </h2>
+
+          <div className="lp-ledger" data-stagger>
+            {FINDINGS.map((f) => (
+              <article className="lp-finding" key={f.path}>
+                <span className={`lp-finding-sev ${f.cls}`}>{f.sev}</span>
+                <span className="lp-finding-path">{f.path}</span>
+                <div className="lp-finding-body">
+                  <h3>{f.title}</h3>
+                  <p>{f.body}</p>
+                </div>
+              </article>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ══════ DEMO TERMINAL ══════ */}
-      <section style={{ maxWidth: 1000, margin: "0 auto", padding: "80px 32px", position: "relative", zIndex: 2 }}>
-        <div style={{ textAlign: "center", marginBottom: 40 }}>
-          <h2 style={{
-            fontSize: "clamp(1.6rem,3vw,2.4rem)", fontWeight: 800, letterSpacing: "-0.02em",
-            background: `linear-gradient(90deg,#fff,${C.mint})`,
-            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
-            marginBottom: 8
-          }}>Live Review Output</h2>
-          <p style={{ color: C.muted, fontSize: 14 }}>Real findings caught before merge — zero false negatives.</p>
-        </div>
-
-        <div ref={demoRef} style={{
-          background: C.bg2, borderRadius: 10, overflow: "hidden",
-          border: `1px solid ${C.mint}44`,
-          boxShadow: `0 0 60px rgba(167,239,158,0.10), 0 0 0 1px ${C.mint}11`
-        }}>
-          {/* Chrome */}
-          <div style={{
-            display: "flex", alignItems: "center", gap: 8,
-            padding: "11px 18px", background: C.bg,
-            borderBottom: `1px solid ${C.border}`
-          }}>
-            <span style={{ width: 11, height: 11, borderRadius: "50%", background: "#ff5f5f" }} />
-            <span style={{ width: 11, height: 11, borderRadius: "50%", background: "#f4d03f" }} />
-            <span style={{ width: 11, height: 11, borderRadius: "50%", background: C.mint }} />
-            <span style={{
-              fontFamily: "'JetBrains Mono',monospace", fontSize: 12,
-              color: C.muted, marginLeft: 8
-            }}>Cypher-ai — pr #247 · feature/user-auth</span>
-            <span style={{
-              marginLeft: "auto", fontFamily: "'JetBrains Mono',monospace",
-              fontSize: 10, color: C.mintDim
-            }}>● LIVE</span>
+      {/* ── 03 · Agents ── */}
+      <section className="lp-section tinted" id="agents">
+        <div className="shell">
+          <div className="sec-mark" data-reveal>
+            <span className="sec-mark-num">03</span>
+            <span className="sec-mark-line" />
+            <span className="sec-mark-name">The roster</span>
           </div>
 
-          {/* Issue rows */}
-          {ISSUES.map((iss, i) => (
-            <div key={i} className="irow" style={{ background: iss.bg }}>
-              <span style={{
-                padding: "2px 8px", borderRadius: 4,
-                border: `1px solid ${iss.color}55`,
-                color: iss.color, fontWeight: 700, fontSize: 10,
-                letterSpacing: ".07em", background: `${iss.color}15`,
-                flexShrink: 0, marginTop: 1
-              }}>{iss.sev}</span>
-              <span style={{ color: "#7de8c5", minWidth: 190, flexShrink: 0 }}>{iss.file}</span>
-              <span style={{ color: C.text }}>{iss.msg}</span>
-            </div>
-          ))}
+          <h2 className="h2" style={{ marginBottom: "clamp(28px,4vw,52px)" }} data-mask>
+            <span>Six specialists, one <em className="serif">pass</em>.</span>
+          </h2>
 
-          {/* Footer */}
-          <div style={{
-            padding: "10px 20px", background: C.bg,
-            borderTop: `1px solid ${C.border}`,
-            fontFamily: "'JetBrains Mono',monospace", fontSize: 11,
-            color: C.muted, display: "flex", gap: 20
-          }}>
-            <span style={{ color: C.red }}>● 1 critical</span>
-            <span style={{ color: C.amber }}>● 1 warning</span>
-            <span style={{ color: C.cyan }}>● 1 perf</span>
-            <span style={{ marginLeft: "auto" }}>✓ 6 agents · 1.4s</span>
+          <div className="lp-roster" data-stagger>
+            {AGENTS.map((a) => (
+              <article className="lp-agent" key={a.n}>
+                <span className="lp-agent-idx">{a.n}</span>
+                <span className="lp-agent-name">{a.name}</span>
+                <span className="lp-agent-desc">{a.desc}</span>
+                <span className="lp-agent-tag">{a.tag}</span>
+              </article>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* ══════ HOW IT WORKS ══════ */}
-      <section id="how" ref={stepsRef} style={{ maxWidth: 860, margin: "0 auto", padding: "0 32px 80px", zIndex: 2, position: "relative" }}>
-        <div style={{ textAlign: "center", marginBottom: 48 }}>
-          <h2 style={{
-            fontSize: "clamp(1.6rem,3vw,2.4rem)", fontWeight: 800, letterSpacing: "-0.02em",
-            background: `linear-gradient(90deg,#fff,${C.cyan})`,
-            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
-            marginBottom: 8
-          }}>How It Works</h2>
-          <p style={{ color: C.muted, fontSize: 14 }}>Four steps. Under 5 seconds total.</p>
-        </div>
-        <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden", background: C.card }}>
-          {STEPS.map((s, i) => (
-            <div key={i} className="step" style={{ padding: "24px 28px" }}>
-              <span style={{
-                fontFamily: "'JetBrains Mono',monospace", fontSize: 22,
-                fontWeight: 700, color: C.mint, flexShrink: 0, opacity: 0.7
-              }}>{s.n}</span>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 16, color: C.text, marginBottom: 5 }}>{s.label}</div>
-                <div style={{ fontSize: 14, color: C.muted, lineHeight: 1.65 }}>{s.desc}</div>
-              </div>
+      {/* ── 04 · Pipeline ── */}
+      <section className="lp-section" id="pipeline">
+        <div className="shell">
+          <div className="sec-mark" data-reveal>
+            <span className="sec-mark-num">04</span>
+            <span className="sec-mark-line" />
+            <span className="sec-mark-name">Pipeline</span>
+          </div>
+
+          <div className="lp-split">
+            <div className="lp-split-sticky">
+              <h2 className="h2" data-mask>
+                <span>Four moves,</span>
+              </h2>
+              <h2 className="h2" data-mask>
+                <span>no <em className="serif">waiting</em>.</span>
+              </h2>
+              <p className="lede" style={{ marginTop: 22 }} data-reveal>
+                The expensive part of review is not thinking — it is queueing. ARGUS decides
+                what deserves a model call before making one.
+              </p>
             </div>
-          ))}
+
+            <div className="lp-steps" data-stagger>
+              {STEPS.map((s) => (
+                <article className="lp-step" key={s.n}>
+                  <span className="lp-step-n">{s.n}</span>
+                  <div>
+                    <h3>{s.h}</h3>
+                    <p>{s.p}</p>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* ══════ FEATURES ══════ */}
-      <section id="features" ref={featRef} style={{ maxWidth: 1100, margin: "0 auto", padding: "0 32px 80px", zIndex: 2, position: "relative" }}>
-        <div style={{ textAlign: "center", marginBottom: 44 }}>
-          <h2 style={{
-            fontSize: "clamp(1.6rem,3vw,2.4rem)", fontWeight: 800, letterSpacing: "-0.02em",
-            background: `linear-gradient(90deg,#fff,${C.mintDim})`,
-            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
-            marginBottom: 8
-          }}>Engineered for Speed</h2>
-          <p style={{ color: C.muted, fontSize: 14 }}>Every agent runs in parallel. Zero waiting. Pure signal.</p>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 16 }}>
-          {FEATURES.map(({ icon, color, title, desc }) => (
-            <article
-              key={title} className="fc"
-              style={{ borderTop: `2px solid ${color}` }}
-              onMouseEnter={e => {
-                e.currentTarget.style.boxShadow = `0 16px 50px ${color}22`;
-                e.currentTarget.style.borderColor = color;
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.boxShadow = "none";
-                e.currentTarget.style.borderColor = C.border;
-                e.currentTarget.style.borderTopColor = color;
-              }}
-            >
-              <div style={{ fontSize: 30, marginBottom: 12 }}>{icon}</div>
-              <h3 style={{ fontSize: 16, fontWeight: 700, color, marginBottom: 7 }}>{title}</h3>
-              <p style={{ fontSize: 14, color: C.muted, lineHeight: 1.65 }}>{desc}</p>
-            </article>
-          ))}
+      {/* ── 05 · Output ── */}
+      <section className="lp-section tinted" id="output">
+        <div className="shell">
+          <div className="sec-mark" data-reveal>
+            <span className="sec-mark-num">05</span>
+            <span className="sec-mark-line" />
+            <span className="sec-mark-name">Output</span>
+          </div>
+
+          <h2 className="h2" style={{ marginBottom: "clamp(28px,4vw,52px)" }} data-mask>
+            <span>Four surfaces, one <em className="serif">run</em>.</span>
+          </h2>
+
+          <div className="lp-outputs" data-stagger>
+            {OUTPUTS.map((o) => (
+              <article className="lp-output" key={o.h}>
+                <span className="lp-output-k">{o.k}</span>
+                <h3>{o.h}</h3>
+                <p>{o.p}</p>
+              </article>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* ══════ FOOTER CTA ══════ */}
-      <section style={{ maxWidth: 1000, margin: "0 auto", padding: "0 32px 72px", zIndex: 2, position: "relative", textAlign: "center" }}>
-        <div style={{
-          background: `linear-gradient(135deg,rgba(167,239,158,0.06) 0%,rgba(94,248,208,0.05) 50%,rgba(167,239,158,0.04) 100%)`,
-          border: `1px solid ${C.mint}33`,
-          borderRadius: 16, padding: "60px 32px"
-        }}>
-          <div style={{
-            fontFamily: "'JetBrains Mono',monospace", fontSize: 12,
-            color: C.mintDim, letterSpacing: ".1em", marginBottom: 16
-          }}>$ Cypher --run-review --pr latest</div>
-          <h2 style={{
-            fontSize: "clamp(1.8rem,3.5vw,2.8rem)", fontWeight: 800,
-            background: `linear-gradient(90deg,${C.mint},${C.cyan})`,
-            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
-            marginBottom: 14, letterSpacing: "-0.02em"
-          }}>Ready to Ship Cleaner Code?</h2>
-          <p style={{ color: C.muted, marginBottom: 36, fontSize: 15 }}>
-            Six AI agents. Instant reviews. Zero setup required.
-          </p>
-          <Link href="/dashboard" className="mint-btn" id="lp-footer-cta">
-            🚀 Launch Cypher AI
-          </Link>
+      {/* ── Close ── */}
+      <section className="lp-close">
+        <div className="shell">
+          <h2 className="h2" data-reveal>
+            Point it at a repository and <em className="serif">read the report</em>.
+          </h2>
+          <div className="lp-cta-row" data-reveal>
+            <Link href="/dashboard" className="btn" id="lp-footer-cta">
+              Open the dashboard
+            </Link>
+          </div>
         </div>
-        <p style={{ color: C.border, fontSize: 12, marginTop: 28, fontFamily: "'JetBrains Mono',monospace" }}>
-          © 2025 Cypher AI · MIT Licence · Built for developers who ship
-        </p>
       </section>
+
+      {/* ── Wordmark ── */}
+      <div className="shell lp-mark">
+        <p className="lp-mark-text" data-mark>ARGUS</p>
+      </div>
+
+      <footer className="shell lp-footer">
+        <span>Autonomous Review for GitHub Understanding &amp; Security</span>
+        <span>Multi-agent code intelligence</span>
+      </footer>
     </>
   );
 }

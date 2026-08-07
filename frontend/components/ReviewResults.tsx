@@ -12,11 +12,12 @@ const SEV_ORDER: Record<Finding["severity"], number> = {
   low: 3,
 };
 
+/* GitHub diff semantics: red carries risk, everything else stays achromatic. */
 const SEV_COLOR: Record<Finding["severity"], string> = {
-  critical: "var(--danger)",
-  high: "#e3b341",
-  medium: "#f0c040",
-  low: "var(--success)",
+  critical: "var(--red)",
+  high: "var(--red)",
+  medium: "var(--amber)",
+  low: "var(--ink-3)",
 };
 
 function SeverityBadge({ sev }: { sev: Finding["severity"] }) {
@@ -63,9 +64,8 @@ function FileGroup({
   return (
     <div className="file-group">
       <div className="file-group-header">
-        <span>
-          <span style={{ color: "var(--ink-2)", marginRight: 6 }}>File</span>
-          <code style={{ fontSize: 13 }}>{filename}</code>
+        <span style={{ color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis" }}>
+          {filename}
         </span>
         <span style={{ display: "flex", gap: 6, flexShrink: 0 }}>
           {(["critical", "high", "medium", "low"] as Finding["severity"][])
@@ -94,13 +94,25 @@ function FileGroup({
             {sorted.map((finding, idx) => (
               <tr key={`${finding.file}-${finding.line}-${idx}`}>
                 <td>
-                  <code style={{ color: "var(--ink-2)", fontSize: 12 }}>
-                    :{finding.line}
+                  <code
+                    style={{
+                      fontFamily: "var(--mono)",
+                      color: "var(--ink-3)",
+                      fontSize: 11.5,
+                    }}
+                  >
+                    {finding.line}
                   </code>
                 </td>
                 <td>
                   <div
-                    style={{ fontWeight: 600, fontSize: 13, marginBottom: 3 }}
+                    style={{
+                      fontWeight: 600,
+                      fontSize: 13.5,
+                      letterSpacing: "-0.015em",
+                      color: "var(--ink)",
+                      marginBottom: 4,
+                    }}
                   >
                     {finding.issue_title}
                   </div>
@@ -120,10 +132,9 @@ function FileGroup({
                 <td>
                   <span
                     style={{
-                      fontSize: 12,
-                      background: "var(--bg-3)",
-                      border: "1px solid var(--border)",
-                      borderRadius: 4,
+                      fontFamily: "var(--mono)",
+                      fontSize: 10.5,
+                      border: "1px solid var(--rule)",
                       padding: "2px 7px",
                       color: "var(--ink-2)",
                       whiteSpace: "nowrap",
@@ -135,14 +146,11 @@ function FileGroup({
                 <td>
                   <div
                     style={{
+                      fontFamily: "var(--mono)",
                       fontSize: 12,
-                      fontWeight: 700,
+                      fontWeight: 600,
                       color:
-                        finding.confidence >= 0.8
-                          ? "var(--success)"
-                          : finding.confidence >= 0.5
-                            ? "#e3b341"
-                            : "var(--ink-2)",
+                        finding.confidence >= 0.8 ? "var(--green)" : "var(--ink-2)",
                     }}
                   >
                     {(finding.confidence * 100).toFixed(0)}%
@@ -221,14 +229,19 @@ export function ReviewResults({ data }: { data: ReviewResponse }) {
             gap: 8,
           }}
         >
-          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>
-            Review Summary
-          </h3>
-          <span style={{ fontSize: 12, color: "var(--ink-2)" }}>
-            Persona: <strong style={{ color: "var(--ink)" }}>{data.persona}</strong>
-            {" "}·{" "}
-            {data.reviewed_files.length} file(s) reviewed
-          </span>
+          <div>
+            <span className="ce-kicker">Review summary</span>
+            <p
+              style={{
+                margin: 0,
+                fontFamily: "var(--mono)",
+                fontSize: 12,
+                color: "var(--ink-2)",
+              }}
+            >
+              {data.persona} · {data.reviewed_files.length} files reviewed
+            </p>
+          </div>
         </div>
 
         <SummaryBar findings={data.findings} />
@@ -237,11 +250,11 @@ export function ReviewResults({ data }: { data: ReviewResponse }) {
           <p
             style={{
               margin: 0,
-              fontSize: 13,
+              fontSize: 14.5,
               color: "var(--ink-2)",
-              lineHeight: 1.8,
+              lineHeight: 1.75,
               whiteSpace: "pre-wrap",
-              padding: "10px 0",
+              maxWidth: "var(--measure)",
             }}
           >
             {data.summary}
@@ -250,33 +263,53 @@ export function ReviewResults({ data }: { data: ReviewResponse }) {
       </div>
 
       {data.findings.length === 0 ? (
-        <div className="card" style={{ textAlign: "center", padding: 40 }}>
-          <div style={{ fontSize: 36, marginBottom: 12 }}>OK</div>
-          <h3 style={{ margin: "0 0 6px", color: "var(--success)" }}>
-            No findings!
+        <div
+          className="card"
+          style={{
+            textAlign: "center",
+            padding: "56px 28px",
+            borderColor: "var(--green-line)",
+            background: "var(--green-soft)",
+          }}
+        >
+          <div className="ce-kicker" style={{ color: "var(--green)" }}>
+            Clean
+          </div>
+          <h3
+            style={{
+              margin: "0 0 8px",
+              fontSize: "clamp(1.3rem,2.4vw,1.8rem)",
+              fontWeight: 700,
+              letterSpacing: "-0.03em",
+              color: "var(--ink)",
+            }}
+          >
+            No findings above the confidence floor
           </h3>
-          <p style={{ margin: 0, fontSize: 14, color: "var(--ink-2)" }}>
-            No high-confidence issues were detected.
+          <p
+            style={{
+              margin: "0 auto",
+              maxWidth: "48ch",
+              fontSize: 14,
+              lineHeight: 1.7,
+              color: "var(--ink-2)",
+            }}
+          >
+            Every agent reported nothing actionable. ARGUS suppresses low-confidence
+            noise rather than padding the report.
           </p>
         </div>
       ) : (
         <div className="card">
-          <h3 style={{ margin: "0 0 14px", fontSize: 15, fontWeight: 800 }}>
-            Inline Findings{" "}
-            <span className="tab-count" style={{ marginLeft: 6 }}>
-              {data.findings.length}
-            </span>
-            <span
-              style={{
-                fontSize: 12,
-                fontWeight: 400,
-                color: "var(--ink-2)",
-                marginLeft: 8,
-              }}
-            >
-              grouped by file
-            </span>
-          </h3>
+          <div className="ce-section-head">
+            <h3>
+              Findings
+              <span className="tab-count" style={{ marginLeft: 10 }}>
+                {data.findings.length}
+              </span>
+            </h3>
+            <p>Grouped by file, ranked by severity then confidence.</p>
+          </div>
 
           {files.map((file) => (
             <FileGroup key={file} filename={file} findings={byFile[file]} />

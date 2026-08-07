@@ -1,0 +1,592 @@
+/* ==========================================================================
+   ARGUS — landing page
+   Editorial concept-case-study composition. Scoped under .lp so nothing here
+   leaks into the dashboard.
+   ========================================================================== */
+
+.lp {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+/* ─── Navigation ──────────────────────────────────────────────────────── */
+
+.lp-nav {
+  position: sticky;
+  top: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  height: 62px;
+  padding-inline: var(--gutter);
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: saturate(180%) blur(14px);
+  border-bottom: 1px solid var(--rule);
+}
+
+.lp-wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--ink);
+}
+
+.lp-eye {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1.5px solid var(--ink);
+  position: relative;
+  flex-shrink: 0;
+}
+
+.lp-eye::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  background: var(--ink);
+}
+
+.lp-nav-spacer {
+  flex: 1;
+}
+
+.lp-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 26px;
+}
+
+.lp-nav-link {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  transition: color 0.18s var(--ease);
+}
+
+.lp-nav-link:hover {
+  color: var(--ink);
+}
+
+/* ─── Section frame ───────────────────────────────────────────────────── */
+
+.lp-section {
+  padding-block: var(--section-y);
+  border-top: 1px solid var(--rule);
+}
+
+.lp-section.tinted {
+  background: var(--paper-2);
+}
+
+.lp-section.flush {
+  border-top: 0;
+}
+
+/* ─── Hero ────────────────────────────────────────────────────────────── */
+
+.lp-hero {
+  padding-top: clamp(56px, 9vw, 120px);
+  padding-bottom: clamp(40px, 6vw, 80px);
+}
+
+.lp-hero-eyebrow {
+  font-family: var(--mono);
+  font-size: clamp(9.5px, 1.05vw, 11.5px);
+  font-weight: 500;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: clamp(28px, 5vw, 56px);
+  display: block;
+}
+
+.lp-hero h1 {
+  max-width: 15ch;
+}
+
+.lp-hero-foot {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: clamp(28px, 5vw, 72px);
+  align-items: end;
+  margin-top: clamp(36px, 5vw, 64px);
+}
+
+.lp-cta-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 28px;
+}
+
+/* Machine-readable spec strip under the hero. */
+.lp-spec {
+  border-top: 1px solid var(--ink);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.lp-spec div {
+  padding: 16px 0 0;
+  border-right: 1px solid var(--rule);
+  padding-right: 14px;
+}
+
+.lp-spec div:last-child {
+  border-right: 0;
+}
+
+.lp-spec dt {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: 6px;
+}
+
+.lp-spec dd {
+  margin: 0;
+  font-family: var(--mono);
+  /* Sized to fit three columns without clipping the longest value. */
+  font-size: clamp(12px, 1.15vw, 15px);
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+/* ─── Two-column editorial split ──────────────────────────────────────── */
+
+.lp-split {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: clamp(28px, 6vw, 96px);
+  align-items: start;
+}
+
+.lp-split-sticky {
+  position: sticky;
+  top: 110px;
+}
+
+.lp-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: var(--measure);
+}
+
+.lp-body p {
+  margin: 0;
+  font-size: clamp(0.98rem, 1.25vw, 1.12rem);
+  line-height: 1.72;
+  color: var(--ink-2);
+}
+
+.lp-body strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* ─── Scan panel (the decode device) ──────────────────────────────────── */
+
+.lp-scan {
+  border: 1px solid var(--ink);
+  background: var(--paper);
+}
+
+.lp-scan-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper-2);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.lp-scan-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  flex-shrink: 0;
+}
+
+.lp-scan-body {
+  padding: 6px 0;
+}
+
+.lp-scan-line {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 14px;
+  padding: 5px 14px;
+  font-family: var(--mono);
+  font-size: clamp(10.5px, 1.05vw, 12.5px);
+  line-height: 1.7;
+  color: var(--ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.lp-scan-num {
+  color: var(--ink-3);
+  text-align: right;
+  user-select: none;
+}
+
+.lp-scan-line.add {
+  background: var(--green-soft);
+  color: #1a7f37;
+}
+
+.lp-scan-line.del {
+  background: var(--red-soft);
+  color: #86181d;
+}
+
+.lp-scan-foot {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  padding: 11px 14px;
+  border-top: 1px solid var(--rule);
+  background: var(--paper-2);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--ink-3);
+}
+
+/* ─── Findings ledger ─────────────────────────────────────────────────── */
+
+.lp-ledger {
+  border-top: 1px solid var(--ink);
+}
+
+.lp-finding {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 220px) minmax(0, 1fr);
+  gap: clamp(12px, 2.5vw, 32px);
+  align-items: start;
+  padding: clamp(18px, 2.6vw, 28px) 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.lp-finding-sev {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border: 1px solid;
+  justify-self: start;
+}
+
+.lp-finding-sev.crit {
+  color: var(--red);
+  border-color: var(--red-line);
+  background: var(--red-soft);
+}
+
+.lp-finding-sev.high {
+  color: var(--red);
+  border-color: var(--red-line);
+}
+
+.lp-finding-sev.pass {
+  color: var(--green);
+  border-color: var(--green-line);
+  background: var(--green-soft);
+}
+
+.lp-finding-path {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink);
+  word-break: break-all;
+}
+
+.lp-finding-body h3 {
+  margin: 0 0 6px;
+  font-size: clamp(1rem, 1.5vw, 1.2rem);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.lp-finding-body p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--ink-2);
+  max-width: 56ch;
+}
+
+/* ─── Agent roster ────────────────────────────────────────────────────── */
+
+.lp-roster {
+  border-top: 1px solid var(--ink);
+}
+
+.lp-agent {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 260px) minmax(0, 1fr) auto;
+  gap: clamp(12px, 2.5vw, 32px);
+  align-items: baseline;
+  padding: clamp(16px, 2.2vw, 24px) 0;
+  border-bottom: 1px solid var(--rule);
+  transition: padding-left 0.3s var(--ease);
+}
+
+.lp-agent:hover {
+  padding-left: 10px;
+}
+
+.lp-agent-idx {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+.lp-agent-name {
+  font-size: clamp(1.05rem, 1.7vw, 1.35rem);
+  font-weight: 650;
+  letter-spacing: -0.025em;
+  color: var(--ink);
+}
+
+.lp-agent-desc {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  max-width: 52ch;
+}
+
+.lp-agent-tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+/* ─── Pipeline ────────────────────────────────────────────────────────── */
+
+.lp-steps {
+  display: grid;
+  gap: 0;
+  border-top: 1px solid var(--ink);
+}
+
+.lp-step {
+  display: grid;
+  grid-template-columns: minmax(0, 0.4fr) minmax(0, 1fr);
+  gap: clamp(16px, 4vw, 56px);
+  padding: clamp(24px, 3.5vw, 42px) 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.lp-step-n {
+  font-family: var(--mono);
+  font-size: clamp(1.6rem, 3.4vw, 2.6rem);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: var(--paper-3);
+  transition: color 0.4s var(--ease);
+}
+
+.lp-step:hover .lp-step-n {
+  color: var(--ink);
+}
+
+.lp-step h3 {
+  margin: 0 0 8px;
+  font-size: clamp(1.1rem, 1.9vw, 1.5rem);
+  font-weight: 650;
+  letter-spacing: -0.025em;
+}
+
+.lp-step p {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.7;
+  color: var(--ink-2);
+  max-width: 54ch;
+}
+
+/* ─── Output cards ────────────────────────────────────────────────────── */
+
+.lp-outputs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(258px, 1fr));
+  border-top: 1px solid var(--ink);
+  border-left: 1px solid var(--rule);
+}
+
+.lp-output {
+  padding: clamp(22px, 3vw, 34px);
+  border-right: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper);
+  transition: background 0.25s var(--ease);
+}
+
+.lp-output:hover {
+  background: var(--paper-2);
+}
+
+.lp-output-k {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  display: block;
+  margin-bottom: 16px;
+}
+
+.lp-output h3 {
+  margin: 0 0 8px;
+  font-size: 1.12rem;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+}
+
+.lp-output p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--ink-2);
+}
+
+/* ─── Closing ─────────────────────────────────────────────────────────── */
+
+.lp-close {
+  text-align: center;
+  padding-block: clamp(80px, 13vw, 180px);
+  border-top: 1px solid var(--rule);
+}
+
+.lp-close h2 {
+  margin-inline: auto;
+  max-width: 16ch;
+}
+
+.lp-close .lp-cta-row {
+  justify-content: center;
+  margin-top: 36px;
+}
+
+/* Oversized wordmark as a closing device, clipped by the viewport edges. */
+.lp-mark {
+  overflow: hidden;
+  border-top: 1px solid var(--rule);
+  padding-top: clamp(28px, 4vw, 48px);
+}
+
+.lp-mark-text {
+  font-size: clamp(3.6rem, 19vw, 17rem);
+  font-weight: 800;
+  line-height: 0.82;
+  letter-spacing: -0.055em;
+  text-align: center;
+  color: var(--ink);
+  margin: 0;
+  user-select: none;
+}
+
+.lp-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-block: 26px 40px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* ─── Reveal primitives (GSAP drives these) ───────────────────────────── */
+
+.lp-mask,
+[data-mask] {
+  display: block;
+  overflow: hidden;
+}
+
+.lp-mask > span,
+[data-mask] > span {
+  display: block;
+}
+
+/* ─── Responsive ──────────────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .lp-hero-foot,
+  .lp-split,
+  .lp-step {
+    grid-template-columns: 1fr;
+  }
+
+  .lp-split-sticky {
+    position: static;
+  }
+
+  .lp-spec {
+    grid-template-columns: 1fr;
+  }
+
+  .lp-spec div {
+    border-right: 0;
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 14px;
+  }
+
+  .lp-spec div:last-child {
+    border-bottom: 0;
+  }
+
+  .lp-finding,
+  .lp-agent {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .lp-agent-tag {
+    display: none;
+  }
+
+  .lp-nav-links {
+    gap: 16px;
+  }
+}
+
+@media (max-width: 560px) {
+  .lp-nav-link.hide-sm {
+    display: none;
+  }
+}

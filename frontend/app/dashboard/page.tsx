@@ -292,10 +292,10 @@ export default function DashboardPage() {
       <div className="dx-content">
         <header className="dx-topbar">
           <Link href="/" className="dx-brand">
-            <span className="dx-brand-mark">[/]</span>
-            Cypher<em>AI</em>
+            <span className="dx-brand-mark" aria-hidden />
+            ARGUS
           </Link>
-          <span className="dx-crumb">/ Dashboard</span>
+          <span className="dx-crumb">/ Console</span>
 
           <span className="dx-topbar-spacer" />
 
@@ -476,7 +476,8 @@ export default function DashboardPage() {
             </section>
 
             <div className="dx-note">
-              <b>Persona</b> changes the depth and tone of every explanation — from
+              <b>ARGUS</b> — Autonomous Review for GitHub Understanding &amp; Security.
+              Persona changes the depth and register of every explanation, from
               first-week intern to production backend engineer.
             </div>
           </aside>
@@ -521,9 +522,9 @@ export default function DashboardPage() {
                 <ReviewResults data={reviewData} />
               ) : (
                 <EmptyPanel
-                  code="01 / review"
-                  title="No review yet"
-                  desc="Point at a repository and hit Run analysis. Six rule-based agents plus a routed LLM pass produce ranked, evidence-backed findings."
+                  code="Surface 01 — Review"
+                  title="Nothing reviewed yet"
+                  desc="Point ARGUS at a repository and run an analysis. Six rule-based agents plus a routed model pass produce ranked, evidence-backed findings."
                 />
               )
             )}
@@ -533,9 +534,9 @@ export default function DashboardPage() {
                 <DocsResults data={docsData} />
               ) : (
                 <EmptyPanel
-                  code="02 / docs"
+                  code="Surface 03 — Documentation"
                   title="No documentation yet"
-                  desc="Run analysis to generate a README, per-module docs, docstrings and an onboarding guide from the parsed source."
+                  desc="Run an analysis to generate a README, per-module documentation, docstrings and an onboarding guide from the parsed source."
                 />
               )
             )}
@@ -578,9 +579,9 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <EmptyPanel
-                  code="03 / graphs"
+                  code="Surface 04 — Dependency graph"
                   title="No graph yet"
-                  desc="Run analysis to map imports into an interactive dependency graph. Drag nodes, zoom, filter by layer, and expand to fullscreen."
+                  desc="Run an analysis to map imports into an interactive dependency graph. Drag nodes, zoom, filter by layer, and expand to fullscreen."
                 />
               )
             )}

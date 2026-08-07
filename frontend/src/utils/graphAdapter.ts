@@ -48,15 +48,17 @@ export type VisualizationBundle = {
   };
 };
 
+/* Muted print hues, matched to GraphView. Semantic green/red stay reserved
+   for review findings and are deliberately absent here. */
 export const GROUP_PALETTE = [
-  "#7dd3fc",
-  "#34d399",
-  "#fbbf24",
-  "#f472b6",
-  "#a78bfa",
-  "#fb7185",
-  "#f97316",
-  "#2dd4bf",
+  "#2c5282",
+  "#1f6f4a",
+  "#8a5a00",
+  "#8b3a62",
+  "#5b4b8a",
+  "#8b3a3a",
+  "#a35a1f",
+  "#1f6f6f",
 ];
 
 type MutableTreeNode = {

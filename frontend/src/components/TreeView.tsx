@@ -172,7 +172,7 @@ function buildFlow(branches: Branch[], selectedNodeId: string | null, connectedN
       type: "smoothstep",
       animated: false,
       style: {
-        stroke: "rgba(71, 85, 105, 0.35)",
+        stroke: "#d9d9d2",
         strokeWidth: 1.8,
       },
     });
@@ -197,7 +197,7 @@ function buildFlow(branches: Branch[], selectedNodeId: string | null, connectedN
                 className="treegraph-leaf-dot"
                 style={{
                   backgroundColor: tint,
-                  boxShadow: `0 0 16px rgba(${toRgb(tint)}, 0.45)`,
+                  boxShadow: "none",
                 }}
               />
               <span className="treegraph-leaf-label">{leaf.label}</span>
@@ -223,12 +223,12 @@ function buildFlow(branches: Branch[], selectedNodeId: string | null, connectedN
           type: MarkerType.ArrowClosed,
           width: 16,
           height: 16,
-          color: active ? "#7dd3fc" : tint,
+          color: active ? "#111111" : tint,
         },
         style: {
-          stroke: active ? "#7dd3fc" : tint,
+          stroke: active ? "#111111" : tint,
           strokeWidth: active ? 2.6 : 2.1,
-          opacity: hasSelection && !active ? 0.14 : 0.92,
+          opacity: hasSelection && !active ? 0.12 : 0.72,
         },
       });
     });
@@ -259,8 +259,8 @@ function TreeCanvas({
     <div className="viz-panel tree-panel treegraph-panel">
       <div className="viz-panel-header">
         <div>
-          <h3>Tree View</h3>
-          <p>Dependency tree view with category branches and colored file leaves.</p>
+          <h3>File tree</h3>
+          <p>Repository structure by top-level layer. Select a leaf to trace it in the graph.</p>
         </div>
         <div className="viz-badge-row">
           <button
@@ -286,14 +286,14 @@ function TreeCanvas({
           minZoom={0.45}
           maxZoom={1.4}
           proOptions={{ hideAttribution: true }}
-          colorMode="dark"
+          colorMode="light"
           onNodeClick={(_, node) => {
             if (node.id.startsWith("branch:") || node.id === "tree-trunk") return;
             onNodeSelect?.(node.id);
           }}
           onPaneClick={() => onNodeSelect?.(null)}
         >
-          <Background gap={26} size={1} color="rgba(51, 65, 85, 0.18)" />
+          <Background gap={26} size={1} color="#eaeae4" />
           <Controls showInteractive={false} />
         </ReactFlow>
       </div>

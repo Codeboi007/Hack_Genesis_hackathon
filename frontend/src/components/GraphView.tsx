@@ -18,24 +18,26 @@ type Props = {
 
 /* ─── Group palette ───────────────────────────────────────────────────── */
 
+/* Muted, print-like hues that hold their own against white without shouting.
+   Deliberately avoids the semantic green/red, which are reserved for findings. */
 const GROUP_COLORS: Record<string, string> = {
-  backend: "#A7EF9E",
-  frontend: "#5ef8d0",
-  agents: "#f0c040",
-  rag: "#bc8cff",
-  docs: "#60a5fa",
-  github: "#ff5f5f",
+  backend: "#1f6f4a",
+  frontend: "#1f5f8b",
+  agents: "#8a5a00",
+  rag: "#5b4b8a",
+  docs: "#2c5282",
+  github: "#8b3a3a",
 };
 
 const FALLBACK_COLORS = [
-  "#7dd3fc",
-  "#34d399",
-  "#fbbf24",
-  "#f472b6",
-  "#a78bfa",
-  "#fb7185",
-  "#f97316",
-  "#2dd4bf",
+  "#2c5282",
+  "#1f6f4a",
+  "#8a5a00",
+  "#8b3a62",
+  "#5b4b8a",
+  "#8b3a3a",
+  "#a35a1f",
+  "#1f6f6f",
 ];
 
 function groupColor(group: string): string {
@@ -307,9 +309,9 @@ export function GraphView({ title, graph, selectedNodeId, onNodeSelect }: Props)
       .attr("class", "gv-hull")
       .attr("d", (d) => d.path)
       .attr("fill", (d) => groupColor(d.group))
-      .attr("fill-opacity", 0.07)
+      .attr("fill-opacity", 0.05)
       .attr("stroke", (d) => groupColor(d.group))
-      .attr("stroke-opacity", 0.38)
+      .attr("stroke-opacity", 0.28)
       .attr("stroke-width", 2)
       .attr("stroke-linejoin", "round")
       .attr("pointer-events", "none");
@@ -412,8 +414,8 @@ export function GraphView({ title, graph, selectedNodeId, onNodeSelect }: Props)
       .attr("class", "gv-dot")
       .attr("r", (node) => radiusFor(node))
       .attr("fill", (node) => groupColor(node.group))
-      .attr("fill-opacity", 0.85)
-      .attr("stroke", "#050d05")
+      .attr("fill-opacity", 0.92)
+      .attr("stroke", "#ffffff")
       .attr("stroke-width", 1.5);
 
     nodeGroups
@@ -421,7 +423,7 @@ export function GraphView({ title, graph, selectedNodeId, onNodeSelect }: Props)
       .attr("class", "gv-label")
       .attr("y", (node) => radiusFor(node) + 13)
       .attr("text-anchor", "middle")
-      .attr("fill", "#d4f0d4")
+      .attr("fill", "#4b4b4b")
       .attr("font-size", 10)
       .attr("font-family", "var(--font-mono)")
       .attr("pointer-events", "none")

@@ -71,14 +71,14 @@ function FileSection({ path, content, renderAsMarkdown = false }: {
   return (
     <details>
       <summary>
-        <span style={{ color: "var(--accent)", marginRight: 4 }}>📄</span>
         {path}
         <span
           style={{
             marginLeft: "auto",
-            fontSize: 11,
-            color: "var(--ink-2)",
+            fontSize: 10.5,
+            color: "var(--ink-3)",
             fontWeight: 400,
+            letterSpacing: "0.06em",
           }}
         >
           {content.split("\n").length} lines
@@ -106,45 +106,40 @@ export function DocsResults({ data }: { data: DocsResponse }) {
     <section className="grid" style={{ gap: 16 }}>
 
       {/* ── Status banner ── */}
-      <div className="card" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+      <div className="card" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 14 }}>
         <div>
-          <h3 style={{ margin: "0 0 4px", fontSize: 15 }}>Documentation Generated</h3>
-          <p style={{ margin: 0, fontSize: 13, color: "var(--ink-2)" }}>
-            Persona: <strong style={{ color: "var(--ink)" }}>{data.persona}</strong>
-            {" "}·{" "}
-            {Object.keys(modularDocs).length} module(s) documented
-            {" "}·{" "}
-            {Object.keys(docstrings).length} file(s) with docstrings
+          <span className="ce-kicker">Documentation generated</span>
+          <p style={{ margin: 0, fontFamily: "var(--mono)", fontSize: 12, color: "var(--ink-2)" }}>
+            {data.persona}
+            {" · "}
+            {Object.keys(modularDocs).length} modules
+            {" · "}
+            {Object.keys(docstrings).length} files with docstrings
           </p>
         </div>
         {data.doc_rot_detected && (
           <div className="doc-rot-banner">
-            ⚠️ Doc rot detected — README was regenerated
+            Doc rot detected — README regenerated
           </div>
         )}
       </div>
 
       {/* ── README ── */}
       <div className="card">
-        <h3 style={{ margin: "0 0 14px", fontSize: 15 }}>
-          📋 README Output
-        </h3>
+        <div className="ce-section-head">
+          <h3>README</h3>
+          <p>Written from parsed symbols and structure, not guessed from the repository name.</p>
+        </div>
         <MarkdownBlock content={readme} />
       </div>
 
       {/* ── Onboarding guide ── */}
       <div className="card">
-        <h3 style={{ margin: "0 0 14px", fontSize: 15 }}>
-          🚀 Onboarding Guide
-        </h3>
-        <div
-          style={{
-            background: "var(--bg-3)",
-            border: "1px solid var(--border)",
-            borderRadius: 8,
-            padding: "16px 20px",
-          }}
-        >
+        <div className="ce-section-head">
+          <h3>Onboarding guide</h3>
+          <p>The path a new engineer should read this codebase in.</p>
+        </div>
+        <div className="card-inset">
           <MarkdownBlock content={onboardingGuide} />
         </div>
       </div>
@@ -152,13 +147,16 @@ export function DocsResults({ data }: { data: DocsResponse }) {
       {/* ── Modular docs ── */}
       {Object.keys(modularDocs).length > 0 && (
         <div className="card">
-          <h3 style={{ margin: "0 0 14px", fontSize: 15 }}>
-            🗂️ Module-by-Module Documentation
-            <span className="tab-count" style={{ marginLeft: 8 }}>
-              {Object.keys(modularDocs).length}
-            </span>
-          </h3>
-          <div style={{ display: "grid", gap: 8 }}>
+          <div className="ce-section-head">
+            <h3>
+              Module documentation
+              <span className="tab-count" style={{ marginLeft: 10 }}>
+                {Object.keys(modularDocs).length}
+              </span>
+            </h3>
+            <p>One entry per module, with its symbols, imports and suggested reading order.</p>
+          </div>
+          <div style={{ display: "grid", gap: 6 }}>
             {Object.entries(modularDocs).map(([path, content]) => (
               <FileSection key={path} path={path} content={content} renderAsMarkdown />
             ))}
@@ -169,13 +167,16 @@ export function DocsResults({ data }: { data: DocsResponse }) {
       {/* ── Docstrings ── */}
       {Object.keys(docstrings).length > 0 && (
         <div className="card">
-          <h3 style={{ margin: "0 0 14px", fontSize: 15 }}>
-            💬 Generated Docstrings
-            <span className="tab-count" style={{ marginLeft: 8 }}>
-              {Object.keys(docstrings).length}
-            </span>
-          </h3>
-          <div style={{ display: "grid", gap: 8 }}>
+          <div className="ce-section-head">
+            <h3>
+              Generated docstrings
+              <span className="tab-count" style={{ marginLeft: 10 }}>
+                {Object.keys(docstrings).length}
+              </span>
+            </h3>
+            <p>Drop-in docstrings for every parsed function, keyed by file.</p>
+          </div>
+          <div style={{ display: "grid", gap: 6 }}>
             {Object.entries(docstrings).map(([path, content]) => (
               <FileSection key={path} path={path} content={content} />
             ))}

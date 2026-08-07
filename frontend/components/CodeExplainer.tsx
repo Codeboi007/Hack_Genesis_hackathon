@@ -8,11 +8,13 @@ import { Finding, ReviewResponse } from "@/lib/types";
 
 const SEVERITIES: Finding["severity"][] = ["critical", "high", "medium", "low"];
 
+/* GitHub diff semantics: red escalates with risk, the rest stay achromatic so
+   the eye is only ever pulled toward something that matters. */
 const SEV_COLOR: Record<Finding["severity"], string> = {
-  critical: "var(--danger)",
-  high: "#ff9f43",
-  medium: "var(--warning)",
-  low: "#60a5fa",
+  critical: "var(--red)",
+  high: "var(--red)",
+  medium: "var(--amber)",
+  low: "var(--ink-3)",
 };
 
 /** Health penalty per finding. Critical issues dominate the score by design. */
@@ -88,7 +90,7 @@ function ScoreMeter({ score }: { score: number }) {
   // Ten blocks, filled proportionally: ■■■■■■■□□□
   const filled = Math.round(score);
   const color =
-    score >= 8 ? "var(--success)" : score >= 5 ? "var(--warning)" : "var(--danger)";
+    score >= 8 ? "var(--green)" : score >= 5 ? "var(--amber)" : "var(--red)";
 
   return (
     <div
@@ -212,8 +214,8 @@ function FileCard({
         <span
           className="ce-risk-pill"
           style={{
-            color: risk ? SEV_COLOR[risk] : "var(--success)",
-            borderColor: risk ? SEV_COLOR[risk] : "var(--success)",
+            color: risk ? SEV_COLOR[risk] : "var(--green)",
+            borderColor: risk ? SEV_COLOR[risk] : "var(--green-line)",
           }}
         >
           {risk ? `${risk} risk` : "no findings"}
@@ -267,7 +269,7 @@ function DeepDive({ finding }: { finding: Finding }) {
         </span>
         <span
           className="ce-dive-sev"
-          style={{ background: color, borderColor: color }}
+          style={{ color, borderColor: color }}
         >
           {finding.severity}
         </span>
