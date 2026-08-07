@@ -51,7 +51,17 @@ def ingest_zip_bytes(blob: bytes, workspace: Path) -> Path:
         with zipfile.ZipFile(io.BytesIO(blob)) as zf:
             # Safety check: reject zip bombs and path-traversal entries
             for name in zf.namelist():
-                if ".." in name or name.startswith("/"):
+                # Safety check: reject path-traversal entries and absolute paths.
+                # Check for path segments that are literally ".." (e.g. "foo/../etc")
+                # but NOT spread-syntax names like Next.js "[...auth]".
+                is_absolute = name.startswith("/")
+                has_traversal = (
+                    name.startswith("../")
+                    or "/../" in name
+                    or name.endswith("/..")
+                    or name == ".."
+                )
+                if is_absolute or has_traversal:
                     raise IngestionError(f"Unsafe path in ZIP archive: {name!r}")
             zf.extractall(workspace)
     except zipfile.BadZipFile as exc:

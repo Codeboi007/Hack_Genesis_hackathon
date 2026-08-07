@@ -67,11 +67,13 @@ class Settings:
 
     nim_api_key: str = os.getenv("NIM_API_KEY", "")
 
-    # Per-role API keys. Each key has its own quota, so the three model roles no
-    # longer compete for one rate limit. Blank means "fall back to NIM_API_KEY".
-    nim_api_key_review: str = os.getenv("NIM_API_KEY_REVIEW", "")
-    nim_api_key_docs: str = os.getenv("NIM_API_KEY_DOCS", "")
-    nim_api_key_neotron: str = os.getenv("NIM_API_KEY_NEOTRON", "")
+    # Pool keys — all four are round-robined across every LLM call so each
+    # feature (review / docs / structure) spreads load across all keys.
+    # Leave blank any keys you don't have; the pool uses whichever are set.
+    nim_api_key_1: str = os.getenv("NIM_API_KEY_1", "")
+    nim_api_key_2: str = os.getenv("NIM_API_KEY_2", "")
+    nim_api_key_3: str = os.getenv("NIM_API_KEY_3", "")
+    nim_api_key_4: str = os.getenv("NIM_API_KEY_4", "")
     nim_base_url: str = os.getenv("NIM_BASE_URL", "https://integrate.api.nvidia.com")
     nim_model_neotron: str = os.getenv("NIM_MODEL_NEOTRON", "nvidia/llama-3.1-nemotron-70b-instruct")
     nim_model_qwen_docs: str = os.getenv("NIM_MODEL_QWEN_DOCS", "qwen/qwen2.5-coder-32b-instruct")

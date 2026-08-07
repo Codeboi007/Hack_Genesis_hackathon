@@ -271,53 +271,112 @@ class NIMClient:
         return None
 
 
-# Three dedicated clients — one per API-key / rate-limit domain.
-#
-# One shared client meant all eight concurrent calls in a review job (agents + structure
-# + file summaries) drew on a single key's quota, producing 503 ResourceExhausted and
-# calls queueing until they burned their own timeout. Splitting by role gives each an
-# independent quota, semaphore and rate pacer, so the roles stop competing.
-#
-# Callers that do not need a specific role can still call get_nim_client() and will
-# receive the review client (the most-used one).
-_client_review: NIMClient | None = None
-_client_docs: NIMClient | None = None
-_client_neotron: NIMClient | None = None
+class NIMClientPool:
+    """
+    Round-robin pool across up to 4 API keys.
+
+    Every call to ``chat()`` is dispatched to the next client in rotation, so
+    the effective quota across N active keys is N × per-key-limit.  Each client
+    has its own ``RatePacer`` and concurrency ``Semaphore``, which means the keys
+    are genuinely independent — they never block each other.
+
+    Backward compatible: if none of NIM_API_KEY_1-4 are set the pool falls back
+    to the single NIM_API_KEY, giving identical behaviour to the old single-client
+    setup.
+    """
+
+    def __init__(self, api_keys: list[str]) -> None:
+        active = [k.strip() for k in api_keys if k and k.strip()]
+        if not active:
+            # Fallback: single key, same as original behaviour.
+            fallback = settings.nim_api_key.strip()
+            active = [fallback] if fallback else []
+        self._clients: list[NIMClient] = [NIMClient(api_key=k) for k in active]
+        self._index = 0
+        self._lock: asyncio.Lock | None = None
+        logger.info(
+            "NIM pool initialised | active_keys=%d",
+            len(self._clients),
+        )
+
+    # ── Public interface (mirrors NIMClient) ──────────────────────────────────
+
+    @property
+    def enabled(self) -> bool:
+        return any(c.enabled for c in self._clients)
+
+    async def chat(
+        self,
+        model: str,
+        system_prompt: str,
+        user_prompt: str,
+        temperature: float = 0.2,
+        call_kind: str = "agent",
+        max_tokens: int | None = None,
+        timeout_seconds: float | None = None,
+    ) -> str | None:
+        if not self._clients:
+            logger.info("NIM pool disabled (no API keys configured)")
+            return None
+        client = await self._next_client()
+        return await client.chat(
+            model=model,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            temperature=temperature,
+            call_kind=call_kind,
+            max_tokens=max_tokens,
+            timeout_seconds=timeout_seconds,
+        )
+
+    async def aclose(self) -> None:
+        """Close all connection pools in the pool."""
+        for client in self._clients:
+            if not client._client_closed():
+                await client.aclose()
+        logger.info("NIM pool closed | clients=%d", len(self._clients))
+
+    # ── Internal ──────────────────────────────────────────────────────────────
+
+    def _get_lock(self) -> asyncio.Lock:
+        if self._lock is None:
+            self._lock = asyncio.Lock()
+        return self._lock
+
+    async def _next_client(self) -> NIMClient:
+        """Atomically advance the round-robin index and return the next client."""
+        async with self._get_lock():
+            client = self._clients[self._index % len(self._clients)]
+            self._index += 1
+            return client
 
 
-def _resolve_key(role_key: str) -> str:
-    """Return role-specific key if set, otherwise fall back to the shared key."""
-    return role_key or settings.nim_api_key
+# Process-wide pool — lazily created on first use.
+_pool: NIMClientPool | None = None
 
 
-def get_nim_client_review() -> NIMClient:
-    global _client_review
-    if _client_review is None:
-        _client_review = NIMClient(api_key=_resolve_key(settings.nim_api_key_review))
-    return _client_review
+def get_nim_pool() -> NIMClientPool:
+    """Return the shared round-robin pool across all configured API keys."""
+    global _pool
+    if _pool is None:
+        _pool = NIMClientPool([
+            settings.nim_api_key_1,
+            settings.nim_api_key_2,
+            settings.nim_api_key_3,
+            settings.nim_api_key_4,
+        ])
+    return _pool
 
 
-def get_nim_client_docs() -> NIMClient:
-    global _client_docs
-    if _client_docs is None:
-        _client_docs = NIMClient(api_key=_resolve_key(settings.nim_api_key_docs))
-    return _client_docs
-
-
-def get_nim_client_neotron() -> NIMClient:
-    global _client_neotron
-    if _client_neotron is None:
-        _client_neotron = NIMClient(api_key=_resolve_key(settings.nim_api_key_neotron))
-    return _client_neotron
-
-
-def get_nim_client() -> NIMClient:
-    """Backward-compatible alias → returns the review client."""
-    return get_nim_client_review()
+def get_nim_client() -> NIMClientPool:
+    """Backward-compatible alias → returns the shared pool."""
+    return get_nim_pool()
 
 
 async def aclose_all_nim_clients() -> None:
-    """Close all three connection pools. Wired to FastAPI shutdown."""
-    for client in [_client_review, _client_docs, _client_neotron]:
-        if client is not None and not client._client_closed():
-            await client.aclose()
+    """Close the pool. Wired to FastAPI shutdown."""
+    global _pool
+    if _pool is not None:
+        await _pool.aclose()
+        _pool = None
+

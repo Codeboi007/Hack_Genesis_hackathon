@@ -88,23 +88,28 @@ JOB_STALE_TIMEOUT_SECONDS = max(settings.job_stale_timeout_seconds, JOB_PHASE_TI
 async def on_startup() -> None:
     logger.info(
         "Server started | host=%s port=%s keep_workspaces=%s nim_enabled=%s models=[%s, %s, %s] "
-        "review_key=%s docs_key=%s neotron_key=%s",
+        "pool_keys=%d",
         settings.backend_host,
         settings.backend_port,
         settings.keep_workspaces,
         bool(
             settings.nim_api_key
-            or settings.nim_api_key_review
-            or settings.nim_api_key_docs
-            or settings.nim_api_key_neotron
+            or settings.nim_api_key_1
+            or settings.nim_api_key_2
+            or settings.nim_api_key_3
+            or settings.nim_api_key_4
         ),
         settings.nim_model_neotron,
         settings.nim_model_qwen_docs,
         settings.nim_model_qwen_review,
-        bool(settings.nim_api_key_review),
-        bool(settings.nim_api_key_docs),
-        bool(settings.nim_api_key_neotron),
+        sum(bool(k) for k in [
+            settings.nim_api_key_1,
+            settings.nim_api_key_2,
+            settings.nim_api_key_3,
+            settings.nim_api_key_4,
+        ]),
     )
+
 
 
 @app.on_event("shutdown")
