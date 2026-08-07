@@ -368,45 +368,59 @@ Files:
     ) -> str:
         if not findings:
             return (
-                "No high-confidence issues were detected. The current changes appear stable "
-                "under configured review checks."
+                "No high-confidence issues were found in this diff. "
+                "The changes look stable — good to proceed once any open threads are resolved."
             )
 
         top = findings[:8]
-        bullet_lines = "\n".join(
-            f"- [{item.severity.upper()}] {item.issue_title} in {item.file}:{item.line} ({item.agent})"
-            for item in top
-        )
+        critical_high = [f for f in top if f.severity in {"critical", "high"}]
+        medium_low    = [f for f in top if f.severity in {"medium", "low"}]
+
+        def fmt(items: list[Any]) -> str:
+            return "\n".join(
+                f"- {item.issue_title} ({item.file}:{item.line})"
+                for item in items
+            )
+
+        sections = []
+        if critical_high:
+            sections.append(f"Must fix before merge:\n{fmt(critical_high)}")
+        if medium_low:
+            sections.append(f"Follow-up items:\n{fmt(medium_low)}")
+
+        findings_block = "\n\n".join(sections)
 
         prompt = f"""
-Persona guidance: {persona_style(persona)}
+{persona_style(persona)}
 
-Write a concise code review summary: what matters most, and the immediate next actions.
-Maximum 6 sentences. No preamble, no markdown headings.
+Write a code review summary for a pull request. Tone: direct, collegial, professional.
+Do NOT use phrases like \"AI\", \"I detected\", or \"analysis found\".
+Start with what the diff is changing overall, then address the most important issue,
+then give the recommended next action. 4 sentences maximum. No markdown headings.
 
-Findings:
-{bullet_lines}
+Findings to summarise:
+{findings_block}
 
-Repository context:
+Repository context (for framing only):
 {json.dumps(self._compact_structure(structure_context))}
 """.strip()
 
         generated = await self.nim.chat(
             model=model or settings.nim_model_qwen_review,
-            system_prompt="You are a senior staff engineer producing PR review summaries.",
+            system_prompt=(
+                "You are a staff engineer writing a PR review summary. "
+                "Write as a human reviewer, not as a tool. No AI self-references."
+            ),
             user_prompt=prompt,
-            temperature=0.1,
+            temperature=0.15,
             call_kind="summary",
         )
 
         if generated:
             return generated.strip()
 
-        return (
-            f"Priority issues detected across code quality checks:\n{bullet_lines}\n\n"
-            "Next step: resolve critical/high findings first, then medium findings that impact "
-            "maintainability and scale."
-        )
+        # Graceful fallback if LLM call fails
+        return self._fallback_summary(findings)
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -526,12 +540,21 @@ Repository context:
 
     def _fallback_summary(self, findings: list[AgentFinding]) -> str:
         if not findings:
-            return "No high-confidence issues detected in this PR diff."
-        top = findings[:5]
-        bullet_lines = "\n".join(
-            f"- [{item.severity.upper()}] {item.issue_title} in {item.file}:{item.line}" for item in top
-        )
-        return "Fast PR review completed. Prioritize critical/high items first:\n" f"{bullet_lines}"
+            return "No significant issues found in this diff. Looks clean."
+        critical_high = [f for f in findings if f.severity in {"critical", "high"}][:3]
+        if critical_high:
+            top_item = critical_high[0]
+            lines = "\n".join(
+                f"- {f.issue_title} ({f.file}:{f.line})" for f in critical_high
+            )
+            return (
+                f"There are {len(critical_high)} high-priority issue(s) that should be resolved before merge. "
+                f"Most urgent: {top_item.issue_title} in {top_item.file}:{top_item.line}. "
+                f"Remaining items:\n{lines}"
+            )
+        top = findings[:3]
+        lines = "\n".join(f"- {f.issue_title} ({f.file}:{f.line})" for f in top)
+        return f"A few items worth addressing before this lands:\n{lines}"
 
     def _dedupe_findings(self, findings: list[Any]) -> list[Any]:
         seen = set()

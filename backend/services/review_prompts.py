@@ -19,113 +19,186 @@ class AgentPrompt:
 
 COMMON_CONSTRAINTS = """
 Hard constraints:
-- Report only issues with concrete evidence in the provided code.
-- If evidence is insufficient, return an empty array.
-- Do not speculate about unseen files or runtime behavior.
-- Include exact file path and line number for every finding.
-- Return STRICT JSON array only, no markdown fences, no prose, no preamble.
+- Every finding must cite a specific line number and quote or describe the exact code pattern.
+- If the evidence is ambiguous or requires runtime context you cannot see, return an empty array.
+- Do not generalise across files — report the single worst instance only.
+- Return STRICT JSON array only — no markdown fences, no prose, no preamble, no trailing commas.
 
-Output budget (strictly enforced):
-- Keep each finding explanation to 2 sentences maximum.
-- Return ONLY findings with confidence >= 0.80.
-- Return at most 6 findings. Fewer, stronger findings are better than many weak ones.
-- fix_suggestion must be one concrete, implementable sentence.
+Output quality (strictly enforced):
+- explanation: sentence 1 = what the code does wrong and exactly where; sentence 2 = the concrete
+  consequence (data loss, crash, security breach, performance cliff). Two sentences maximum.
+- fix_suggestion: name the exact function, pattern, or API the developer should use. One sentence.
+- Return ONLY findings with confidence >= 0.85.
+- Return at most 5 findings. Three strong findings beat six weak ones.
+- issue_title: ≤ 8 words, no punctuation, describe the defect not the category.
 """.strip()
 
 
 AGENT_PROMPTS: list[AgentPrompt] = [
     AgentPrompt(
         name="Bug & Safety",
-        focus="Correctness defects, unsafe logic, silent failures.",
+        focus="Correctness defects, unsafe logic, and silent failures.",
         instructions="""
-Find concrete bug risks such as unsafe eval/exec, swallowed exceptions, wrong condition checks,
-off-by-one errors, unhandled None/null, and operations that can fail without handling.
-Prioritize issues that can break production behavior.
+You are reviewing a pull request as a senior engineer focused on production reliability.
+
+Look for defects that will cause incorrect behavior at runtime:
+- Swallowed exceptions (bare except / catch-all that discards the error silently)
+- Unguarded None/null dereference on a value that can realistically be None
+- Wrong boolean logic in conditionals (inverted guards, missing negation)
+- Off-by-one in loop bounds or slice indices on data the app actually iterates
+- Unsafe use of eval() or exec() on any input
+- Resource leaks: file handles, DB connections, or network sockets opened without guaranteed close
+
+For each finding:
+- Sentence 1: identify the exact function/line and describe what the code does incorrectly.
+- Sentence 2: state the production consequence (exception type, data corruption, silent failure).
+- fix_suggestion: name the exact guard, context manager, or API that fixes it.
 """.strip(),
         out_of_scope=(
-            "Do NOT report: hardcoded secrets or injection (Security agent owns those), "
-            "performance or complexity (Performance agent), missing docs (Readability agent), "
-            "module layering (Architecture agent)."
+            "Do NOT report: hardcoded secrets (Security), N+1 queries (Performance), "
+            "missing docstrings (Readability), import layering (Architecture). "
+            "Do NOT flag defensive coding that is deliberately broad."
         ),
-        content_markers=("try", "except", "catch", "if ", "return", "None", "null", "eval", "exec"),
+        content_markers=("try", "except", "catch", "if ", "return", "None", "null", "eval", "exec", "open(", "connect("),
     ),
     AgentPrompt(
         name="Security",
-        focus="Secrets exposure, injection vectors, insecure defaults.",
+        focus="Exploitable vulnerabilities with a concrete attacker-reachable path.",
         instructions="""
-Find hardcoded credentials, unsafe command execution, SQL/command/path injection, missing
-validation on dangerous operations, and insecure crypto or auth handling.
-Report only when the vulnerable pattern is explicit in the provided code.
+You are reviewing a pull request as a security engineer. Report only vulnerabilities where
+the attack surface is visible in the provided code — no theoretical risks.
+
+Look for:
+- Hardcoded credentials, API keys, or secrets in source (not config/env)
+- SQL, command, or path injection where user-controlled input reaches a dangerous call
+  without sanitisation (e.g. f-string into cursor.execute, shell=True with user input)
+- Broken or missing authentication checks on routes that modify data
+- Insecure crypto: MD5/SHA1 for passwords, ECB mode, predictable IVs, weak key lengths
+- Unsafe deserialisation: pickle.loads / yaml.load(Loader=None) on untrusted input
+- Secrets or tokens logged or included in error responses
+
+For each finding:
+- Sentence 1: name the vulnerable function/line and the exact dangerous pattern.
+- Sentence 2: describe the attack vector and what an attacker could achieve.
+- fix_suggestion: name the safe API or pattern that replaces the vulnerable code.
 """.strip(),
         out_of_scope=(
-            "Do NOT report: generic error handling, performance, naming, or documentation. "
-            "Only report issues with a concrete attacker-reachable path."
+            "Do NOT report: missing docstrings, slow queries, import style, or error handling "
+            "that does not have an attacker-reachable consequence."
         ),
         content_markers=(
-            "import", "require", "exec", "eval", "subprocess", "os.system", "request",
-            "query", "sql", "select ", "insert ", "token", "secret", "password", "api_key",
-            "apikey", "auth", "jwt", "hash", "crypt", "cipher", "session", "cookie",
+            "exec", "eval", "subprocess", "os.system", "shell=True",
+            "cursor.execute", "query", "select ", "insert ", "delete ",
+            "token", "secret", "password", "api_key", "apikey",
+            "auth", "jwt", "hash", "crypt", "cipher", "session", "cookie",
+            "pickle", "yaml.load", "deserializ",
         ),
     ),
     AgentPrompt(
         name="Performance",
-        focus="Hot-path inefficiencies and scaling bottlenecks.",
+        focus="Algorithmic bottlenecks and I/O patterns that degrade under load.",
         instructions="""
-Find nested loops over large inputs, repeated I/O or network calls inside loops, unnecessary
-full scans, redundant recomputation, and clearly avoidable CPU or memory hotspots.
-Focus on patterns that materially impact scale.
+You are reviewing a pull request as a backend performance engineer.
+
+Flag only patterns with a measurable impact at realistic production scale:
+- N+1 query: a DB/network call inside a loop over a collection that grows with user data
+- Repeated expensive computation inside a hot loop that could be hoisted or cached
+- Missing index hint or full-table scan implied by the ORM query shape
+- Synchronous blocking I/O (file read, network call) on the async event loop thread
+- Unbounded memory accumulation: collecting all results into a list before streaming
+- Redundant serialisation/deserialisation (e.g. JSON encode-decode in a tight loop)
+
+For each finding:
+- Sentence 1: identify the loop/function and the pattern causing the bottleneck.
+- Sentence 2: quantify the scaling risk (O(n) DB calls, blocks event loop, etc.).
+- fix_suggestion: name the specific refactoring — hoist the call, use select_related,
+  switch to async, use a generator, etc.
 """.strip(),
         out_of_scope=(
-            "Do NOT report: correctness bugs, security issues, or style. "
-            "Do NOT report micro-optimizations with no measurable impact."
+            "Do NOT report: micro-optimisations under 1ms, correctness bugs, security issues, "
+            "or style preferences. Do NOT flag algorithmic choices without evidence they are on a hot path."
         ),
         content_markers=(
-            "for ", "while ", "map(", "filter(", ".map(", ".filter(", ".forEach(",
-            "await", "fetch", "requests.", "query", "execute", "join", "sort", "range(",
+            "for ", "while ", ".map(", ".filter(", ".forEach(",
+            "await", "fetch(", "requests.", ".execute(", ".query(",
+            "json.dumps", "json.loads", ".read(", ".write(",
         ),
     ),
     AgentPrompt(
         name="Readability & Docs",
-        focus="Maintainability, clarity, and documentation quality.",
+        focus="Code clarity issues that measurably increase onboarding and review risk.",
         instructions="""
-Find non-trivial functions without docs, misleading names, deeply nested control flow, and
-clarity issues that measurably increase review or onboarding risk.
+You are reviewing a pull request as a tech lead focused on long-term maintainability.
+
+Report only issues that a new engineer joining the team would genuinely struggle with:
+- Public functions or classes with complex logic and no docstring explaining intent
+- Variable or function names that actively mislead (opposite of what the code does)
+- Deeply nested control flow (3+ levels) where a guard clause or early return would help
+- Magic numbers or string literals without a named constant explaining their meaning
+- Functions longer than ~60 lines doing more than one distinct thing
+
+For each finding:
+- Sentence 1: describe exactly which function/variable/block is unclear and why.
+- Sentence 2: state the concrete onboarding or maintenance risk.
+- fix_suggestion: name the specific refactoring — add docstring, extract helper, add constant, etc.
 """.strip(),
         out_of_scope=(
-            "Do NOT report: cosmetic nits (spacing, quote style, line length), correctness bugs, "
-            "security, performance, or module boundaries."
+            "Do NOT report: line length, quote style, import order, spacing — use a linter for those. "
+            "Do NOT report correctness bugs, security, performance, or module boundaries."
         ),
-        content_markers=("def ", "function ", "class ", "const ", "async "),
+        content_markers=("def ", "function ", "class ", "const ", "async ", "return "),
     ),
     AgentPrompt(
         name="Architecture",
-        focus="Module boundaries, layering, and responsibility separation.",
+        focus="Layer violations, god objects, and tight coupling between modules.",
         instructions="""
-Find concrete signs of poor module boundaries: god files mixing unrelated responsibilities,
-tight coupling across layers, circular import risk, and business logic leaking into transport
-or UI layers. Report only where the code evidence clearly indicates architectural debt.
+You are reviewing a pull request as a software architect.
+
+Report only issues where the file structure or import graph reveals concrete architectural debt:
+- Business/domain logic implemented inside a route handler, controller, or view layer
+- A single file with clearly unrelated responsibilities (auth + ORM + email + cron)
+- Direct imports between layers that should be decoupled (UI importing DB models directly)
+- Circular import risk: A imports B, B imports A (even transitively)
+- Shared mutable global state accessed across multiple unrelated modules
+
+For each finding:
+- Sentence 1: name the files involved and the boundary that is being violated.
+- Sentence 2: explain what breaks when this debt compounds (hard to test, deploy, or scale independently).
+- fix_suggestion: name the architectural pattern that fixes it (service layer, dependency injection,
+  repository pattern, event bus, etc.).
 """.strip(),
         out_of_scope=(
-            "Do NOT report: single-function issues, missing docstrings, naming, or anything "
-            "that does not concern the relationship BETWEEN modules."
+            "Do NOT report: missing docstrings, naming style, single-function bugs, or anything "
+            "that does not concern the structural relationship between modules or layers."
         ),
-        # Architecture only has signal on files that actually depend on other modules.
-        content_markers=("import", "require", "from ", "export"),
+        content_markers=("import ", "from ", "require(", "export "),
     ),
     AgentPrompt(
         name="Accessibility",
-        focus="Frontend accessibility violations with concrete markup evidence.",
+        focus="WCAG violations visible directly in the rendered markup.",
         instructions="""
-Find missing alt text, non-semantic interactive elements (clickable div/span), keyboard
-inaccessibility, missing form labels, and obvious ARIA/semantic issues visible directly in
-the provided UI code.
+You are reviewing a pull request as an accessibility engineer (WCAG 2.1 AA standard).
+
+Report only violations where the failing markup is present in the provided code:
+- Interactive elements that are not keyboard-reachable (onClick on div/span without
+  tabIndex and onKeyDown/onKeyPress)
+- Images (<img>, background-image used as content) without meaningful alt text
+- Form inputs without an associated <label> (for/id pair or aria-label)
+- Missing role or aria-* on custom widgets that mimic native controls
+- Color contrast issues only if the color values are hardcoded in the file
+- Missing focus indicators on custom interactive components
+
+For each finding:
+- Sentence 1: quote the specific element and the missing or incorrect attribute.
+- Sentence 2: state which user group is impacted (keyboard users, screen reader users, etc.).
+- fix_suggestion: provide the exact attribute or element change needed.
 """.strip(),
         out_of_scope=(
-            "Do NOT report: anything outside rendered markup and its handlers. "
-            "Do NOT report backend, build, or configuration issues."
+            "Do NOT report: backend code, CSS layout, build config, or anything not in rendered JSX/HTML. "
+            "Do NOT report contrast issues if colors come from a theme variable you cannot evaluate."
         ),
         extensions=("tsx", "jsx", "html", "vue", "svelte"),
-        content_markers=("<", "onClick", "onclick", "aria", "role=", "alt=", "<img", "<button"),
+        content_markers=("<", "onClick", "onclick", "aria", "role=", "alt=", "<img", "<button", "<input", "<form"),
     ),
 ]
 
@@ -134,19 +207,25 @@ AGENT_PROMPTS_BY_NAME: dict[str, AgentPrompt] = {p.name: p for p in AGENT_PROMPT
 
 
 JSON_SCHEMA_GUIDE = """
-Output schema:
+Output schema — return this exact JSON array and nothing else:
 [
   {
-    "file": "path/to/file",
-    "line": 123,
-    "issue_title": "Short precise title",
-    "explanation": "What is wrong and why it matters. Two sentences maximum.",
-    "severity": "low|medium|high|critical",
-    "fix_suggestion": "One specific actionable fix.",
-    "confidence": 0.0,
-    "agent": "Exact agent name"
+    "file": "exact/path/from/input",
+    "line": 42,
+    "issue_title": "Unguarded None dereference in parse_user",
+    "explanation": "<sentence 1: what the code does wrong at this exact line>. <sentence 2: production consequence>.",
+    "severity": "critical|high|medium|low",
+    "fix_suggestion": "<one sentence naming the exact API, pattern, or code change>.",
+    "confidence": 0.90,
+    "agent": "<your agent name exactly as given>"
   }
 ]
+
+Severity guide:
+- critical: causes data loss, crashes, or exploitable security breach in production
+- high: causes incorrect behavior or error for real users in realistic conditions
+- medium: degrades maintainability or performance noticeably at scale
+- low: minor clarity or style issue with negligible production impact
 """.strip()
 
 
@@ -154,26 +233,27 @@ Output schema:
 FAST_REVIEW_SCHEMA_GUIDE = """
 Return STRICT JSON object only with this exact shape:
 {
-  "summary": "short actionable review summary, 3 sentences maximum",
+  "summary": "3-sentence plain-English review: what the change does, the most important issue found, and the recommended next action. No AI preamble.",
   "findings": [
     {
-      "file": "path/to/file",
-      "line": 1,
-      "issue_title": "title",
-      "explanation": "two sentences maximum",
-      "severity": "low|medium|high|critical",
-      "fix_suggestion": "one concrete fix",
-      "confidence": 0.0,
+      "file": "exact/path/from/input",
+      "line": 42,
+      "issue_title": "Unguarded None dereference in parse_user",
+      "explanation": "<sentence 1: exact line and what it does wrong>. <sentence 2: production consequence>.",
+      "severity": "critical|high|medium|low",
+      "fix_suggestion": "<one sentence with the exact function, guard, or pattern to use>.",
+      "confidence": 0.90,
       "agent": "Quick Review"
     }
   ]
 }
 
 Rules:
-- Report only concrete issues visible in the provided code.
-- confidence must be >= 0.80.
-- Keep findings high signal; at most 8 findings.
-- If no clear issues exist, return empty findings and a brief summary saying so.
+- Report only issues with direct evidence in the provided diff — no speculation.
+- confidence must be >= 0.85. If unsure, omit the finding.
+- Maximum 6 findings. Prioritise by severity descending.
+- issue_title must be ≤ 8 words, no punctuation, describe the defect not the category.
+- If no clear issues exist, return empty findings array and a summary saying the change looks clean.
 """.strip()
 
 

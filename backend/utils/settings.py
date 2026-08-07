@@ -90,8 +90,8 @@ class Settings:
     nim_max_tokens_agent: int = _int_env("NIM_MAX_TOKENS_AGENT", 1024, minimum=128)
     nim_max_tokens_summary: int = _int_env("NIM_MAX_TOKENS_SUMMARY", 2048, minimum=256)
 
-    # How many NIM requests may be in flight at once. The RPM pacer still applies.
-    nim_max_concurrency: int = _int_env("NIM_MAX_CONCURRENCY", 3, minimum=1)
+    # How many NIM requests may be in flight at once per client. The RPM pacer still applies.
+    nim_max_concurrency: int = _int_env("NIM_MAX_CONCURRENCY", 6, minimum=1)
 
     # Review pipeline behaviour
     review_use_langgraph: bool = _bool_env("REVIEW_USE_LANGGRAPH", True)

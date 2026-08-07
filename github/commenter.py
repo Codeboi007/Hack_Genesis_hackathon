@@ -52,32 +52,50 @@ def post_pr_review(
         "X-GitHub-Api-Version": "2022-11-28",
     }
 
-    # Build inline comments — GitHub requires 'position' or 'line' (line is preferred for diff-relative)
-    # We use the pull_request_review endpoint with COMMENT event so all are posted atomically.
+    SEVERITY_BADGE = {
+        "critical": "🔴 Critical",
+        "high":     "🟠 High",
+        "medium":   "🟡 Medium",
+        "low":      "🔵 Low",
+    }
+
     comments = []
     for finding in findings:
-        # GitHub requires line to be within the diff; we clip to at least 1.
+        severity_label = SEVERITY_BADGE.get(finding["severity"].lower(), finding["severity"].capitalize())
         comments.append(
             {
                 "path": finding["file"],
                 "line": max(1, int(finding["line"])),
                 "side": "RIGHT",
                 "body": (
-                    f"**[{finding['severity'].upper()}] {finding['issue_title']}**\n\n"
+                    f"{severity_label} — **{finding['issue_title']}**\n\n"
                     f"{finding['explanation']}\n\n"
-                    f"**Suggested fix:** {finding['fix_suggestion']}\n\n"
-                    f"*Agent: {finding['agent']} · Confidence: {int(finding['confidence'] * 100)}%*"
+                    f"**Suggested change:** {finding['fix_suggestion']}"
                 ),
             }
         )
 
-    review_body = (
-        f"## 🤖 AI Code Review\n\n{summary}\n\n"
-        f"*{len(findings)} finding(s) detected across {len({f['file'] for f in findings})} file(s).*"
-    ) if summary else (
-        f"## 🤖 AI Code Review\n\n"
-        f"*{len(findings)} finding(s) detected across {len({f['file'] for f in findings})} file(s).*"
-    )
+    # Build the summary header — grouped by severity for scannability.
+    sev_order = ["critical", "high", "medium", "low"]
+    sev_emoji = {"critical": "🔴", "high": "🟠", "medium": "🟡", "low": "🔵"}
+    counts: dict[str, int] = {s: 0 for s in sev_order}
+    for f in findings:
+        s = f["severity"].lower()
+        if s in counts:
+            counts[s] += 1
+    badge_parts = [
+        f"{sev_emoji[s]} {counts[s]} {s}"
+        for s in sev_order if counts[s] > 0
+    ]
+    badge_line = "  ".join(badge_parts) or "no issues"
+
+    files_reviewed = len({f["file"] for f in findings})
+    header = f"### Code Review — {len(findings)} issue{'s' if len(findings) != 1 else ''} across {files_reviewed} file{'s' if files_reviewed != 1 else ''}\n{badge_line}"
+
+    if summary:
+        review_body = f"{header}\n\n{summary}"
+    else:
+        review_body = header
 
     review_url = f"{GITHUB_API}/repos/{repo_full_name}/pulls/{pr_number}/reviews"
     payload: dict[str, Any] = {
