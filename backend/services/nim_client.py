@@ -92,14 +92,15 @@ class NIMClient:
     and bounds in-flight requests with a semaphore so LangGraph nodes can fan out safely.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, api_key: str | None = None) -> None:
         # Normalise: strip trailing slash, then strip accidental trailing /v1
         # so we can safely append /v1/chat/completions ourselves.
         base = settings.nim_base_url.rstrip("/")
         if base.endswith("/v1"):
             base = base[:-3]
         self.base_url = base
-        self.api_key = settings.nim_api_key
+        # Use the role-specific key when given, otherwise the global NIM_API_KEY.
+        self.api_key = api_key or settings.nim_api_key
         self._pacer = RatePacer(settings.nim_rate_limit_rpm)
         self._client: httpx.AsyncClient | None = None
         self._semaphore: asyncio.Semaphore | None = None
@@ -108,6 +109,9 @@ class NIMClient:
     @property
     def enabled(self) -> bool:
         return bool(self.api_key)
+
+    def _client_closed(self) -> bool:
+        return self._client is None or self._client.is_closed
 
     # ── Resource management ───────────────────────────────────────────────────
 
@@ -267,17 +271,53 @@ class NIMClient:
         return None
 
 
-# Process-wide shared instance.
+# Three dedicated clients — one per API-key / rate-limit domain.
 #
-# Previously ReviewService, DocumentationService and StructureService each built their
-# own NIMClient, which meant three independent rate limiters and three connection pools
-# all pointed at the same quota — so the configured RPM was effectively tripled. One
-# shared client makes the rate limit and the concurrency ceiling actually mean something.
-_shared_client: NIMClient | None = None
+# One shared client meant all eight concurrent calls in a review job (agents + structure
+# + file summaries) drew on a single key's quota, producing 503 ResourceExhausted and
+# calls queueing until they burned their own timeout. Splitting by role gives each an
+# independent quota, semaphore and rate pacer, so the roles stop competing.
+#
+# Callers that do not need a specific role can still call get_nim_client() and will
+# receive the review client (the most-used one).
+_client_review: NIMClient | None = None
+_client_docs: NIMClient | None = None
+_client_neotron: NIMClient | None = None
+
+
+def _resolve_key(role_key: str) -> str:
+    """Return role-specific key if set, otherwise fall back to the shared key."""
+    return role_key or settings.nim_api_key
+
+
+def get_nim_client_review() -> NIMClient:
+    global _client_review
+    if _client_review is None:
+        _client_review = NIMClient(api_key=_resolve_key(settings.nim_api_key_review))
+    return _client_review
+
+
+def get_nim_client_docs() -> NIMClient:
+    global _client_docs
+    if _client_docs is None:
+        _client_docs = NIMClient(api_key=_resolve_key(settings.nim_api_key_docs))
+    return _client_docs
+
+
+def get_nim_client_neotron() -> NIMClient:
+    global _client_neotron
+    if _client_neotron is None:
+        _client_neotron = NIMClient(api_key=_resolve_key(settings.nim_api_key_neotron))
+    return _client_neotron
 
 
 def get_nim_client() -> NIMClient:
-    global _shared_client
-    if _shared_client is None:
-        _shared_client = NIMClient()
-    return _shared_client
+    """Backward-compatible alias → returns the review client."""
+    return get_nim_client_review()
+
+
+async def aclose_all_nim_clients() -> None:
+    """Close all three connection pools. Wired to FastAPI shutdown."""
+    for client in [_client_review, _client_docs, _client_neotron]:
+        if client is not None and not client._client_closed():
+            await client.aclose()

@@ -26,7 +26,7 @@ from backend.models.schemas import (
     WebhookAck,
 )
 from backend.services.doc_service import DocumentationService
-from backend.services.nim_client import get_nim_client
+from backend.services.nim_client import aclose_all_nim_clients
 from backend.services.ingestion import (
     IngestionError,
     cleanup_workspace,
@@ -87,20 +87,29 @@ JOB_STALE_TIMEOUT_SECONDS = max(settings.job_stale_timeout_seconds, JOB_PHASE_TI
 @app.on_event("startup")
 async def on_startup() -> None:
     logger.info(
-        "Server started | host=%s port=%s keep_workspaces=%s nim_enabled=%s models=[%s, %s, %s]",
+        "Server started | host=%s port=%s keep_workspaces=%s nim_enabled=%s models=[%s, %s, %s] "
+        "review_key=%s docs_key=%s neotron_key=%s",
         settings.backend_host,
         settings.backend_port,
         settings.keep_workspaces,
-        bool(settings.nim_api_key),
+        bool(
+            settings.nim_api_key
+            or settings.nim_api_key_review
+            or settings.nim_api_key_docs
+            or settings.nim_api_key_neotron
+        ),
         settings.nim_model_neotron,
         settings.nim_model_qwen_docs,
         settings.nim_model_qwen_review,
+        bool(settings.nim_api_key_review),
+        bool(settings.nim_api_key_docs),
+        bool(settings.nim_api_key_neotron),
     )
 
 
 @app.on_event("shutdown")
 async def on_shutdown() -> None:
-    await get_nim_client().aclose()
+    await aclose_all_nim_clients()
     await redis_client.aclose()
 
 

@@ -7,7 +7,7 @@ from typing import Any
 
 from agents.base_agent import AgentFinding, SEVERITY_ORDER
 from agents.orchestrator import ReviewOrchestrator
-from backend.services.nim_client import get_nim_client
+from backend.services.nim_client import get_nim_client_docs, get_nim_client_review
 from backend.services.persona import persona_explanation_suffix, persona_fix_suffix, persona_style
 from backend.services.review_prompts import (
     COMMON_CONSTRAINTS,
@@ -32,7 +32,8 @@ class ReviewService:
     def __init__(self, rag: RAGPipeline) -> None:
         self.rag = rag
         self.orchestrator = ReviewOrchestrator()
-        self.nim = get_nim_client()
+        self.nim = get_nim_client_review()       # agents + quick review
+        self.nim_docs = get_nim_client_docs()    # file summaries
         self.structure = StructureService()
 
     # ── Public entrypoints ────────────────────────────────────────────────────
@@ -335,7 +336,7 @@ Files:
 {json.dumps(payload)}
 """.strip()
 
-        out = await self.nim.chat(
+        out = await self.nim_docs.chat(
             model=settings.nim_model_qwen_docs,
             system_prompt="You explain code to junior developers. Return strict JSON object only.",
             user_prompt=prompt,
