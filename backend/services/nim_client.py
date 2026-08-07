@@ -32,8 +32,8 @@ CALL_PROFILES: dict[str, CallProfile] = {
         max_tokens=settings.nim_max_tokens_agent,
     ),
     "structure": CallProfile(
-        timeout_seconds=float(settings.nim_agent_timeout_seconds),
-        max_tokens=settings.nim_max_tokens_agent,
+        timeout_seconds=float(settings.nim_docs_timeout_seconds),
+        max_tokens=settings.nim_max_tokens_summary,
     ),
     "summary": CallProfile(
         timeout_seconds=float(settings.nim_docs_timeout_seconds),

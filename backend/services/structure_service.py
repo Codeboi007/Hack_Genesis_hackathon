@@ -17,11 +17,11 @@ class StructureService:
         sample = [
             {
                 "path": item["path"],
-                "imports": item.get("imports", [])[:12],
-                "functions": [f["name"] for f in item.get("functions", [])[:20]],
-                "classes": [c["name"] for c in item.get("classes", [])[:20]],
+                "imports": item.get("imports", [])[:8],
+                "functions": [f["name"] for f in item.get("functions", [])[:10]],
+                "classes": [c["name"] for c in item.get("classes", [])[:10]],
             }
-            for item in parsed_files[:30]
+            for item in parsed_files[:15]
         ]
 
         prompt = (
