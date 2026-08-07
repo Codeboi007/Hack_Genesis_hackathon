@@ -3,13 +3,13 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from backend.services.nim_client import get_nim_client_neotron
+from backend.services.nim_client import get_nim_pool
 from backend.utils.settings import settings
 
 
 class StructureService:
     def __init__(self) -> None:
-        self.nim = get_nim_client_neotron()
+        self.nim = get_nim_pool()
 
     async def derive(self, parsed_files: list[dict[str, Any]]) -> dict[str, Any]:
         local = self._local_structure(parsed_files)
