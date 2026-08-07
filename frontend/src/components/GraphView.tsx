@@ -173,6 +173,9 @@ export function GraphView({ title, graph, selectedNodeId, onNodeSelect }: Props)
     }
 
     const root = svg.append("g").attr("class", "gv-root");
+    // Layer order = z-index: hulls → group labels → links → nodes
+    const hullLayer = root.append("g").attr("class", "gv-hulls");
+    const labelLayer = root.append("g").attr("class", "gv-group-labels");
     const linkLayer = root.append("g").attr("class", "gv-links");
     const nodeLayer = root.append("g").attr("class", "gv-nodes");
 
@@ -204,6 +207,28 @@ export function GraphView({ title, graph, selectedNodeId, onNodeSelect }: Props)
       )
       .force("x", d3.forceX(WIDTH / 2).strength(0.03))
       .force("y", d3.forceY(HEIGHT / 2).strength(0.03))
+      // Clustering force: gently pulls same-group nodes toward their group centroid
+      // so that convex hulls are tight and readable.
+      .force("cluster", (() => {
+        let _cn: SimNode[] = [];
+        const f = (alpha: number) => {
+          const centroids = new Map<string, { x: number; y: number; n: number }>();
+          for (const n of _cn) {
+            const c = centroids.get(n.group) ?? { x: 0, y: 0, n: 0 };
+            c.x += n.x ?? 0; c.y += n.y ?? 0; c.n += 1;
+            centroids.set(n.group, c);
+          }
+          for (const c of centroids.values()) { c.x /= c.n; c.y /= c.n; }
+          const k = alpha * 0.12;
+          for (const n of _cn) {
+            const c = centroids.get(n.group);
+            if (!c) continue;
+            n.vx = (n.vx ?? 0) - ((n.x ?? 0) - c.x) * k;
+            n.vy = (n.vy ?? 0) - ((n.y ?? 0) - c.y) * k;
+          }
+        };
+        return Object.assign(f, { initialize: (ns: SimNode[]) => { _cn = [...ns]; } });
+      })())
       .stop();
 
     // Run to convergence up front, then freeze: no post-load jitter.
@@ -212,6 +237,83 @@ export function GraphView({ title, graph, selectedNodeId, onNodeSelect }: Props)
     positionsRef.current = new Map(
       nodes.map((node) => [node.id, { x: node.x ?? 0, y: node.y ?? 0 }]),
     );
+
+    /* ── Convex hull groupings ─────────────────────────────────────────── */
+    const HULL_PAD = 22;
+
+    // Sample a ring of points around each node so the hull wraps with padding.
+    function hullPoints(gNodes: SimNode[]): [number, number][] | null {
+      const pts: [number, number][] = gNodes.flatMap((n) => {
+        const cx = n.x ?? 0;
+        const cy = n.y ?? 0;
+        const r = radiusFor(n) + HULL_PAD;
+        return Array.from({ length: 8 }, (_, i) => {
+          const a = (i / 8) * Math.PI * 2;
+          return [cx + r * Math.cos(a), cy + r * Math.sin(a)] as [number, number];
+        });
+      });
+      return d3.polygonHull(pts);
+    }
+
+    const byGroup = new Map<string, SimNode[]>();
+    for (const n of nodes) {
+      const arr = byGroup.get(n.group);
+      if (arr) arr.push(n);
+      else byGroup.set(n.group, [n]);
+    }
+
+    const hullData: Array<{
+      group: string;
+      path: string;
+      cx: number;
+      cy: number;
+      topY: number;
+    }> = [];
+    for (const [group, gNodes] of byGroup) {
+      const hull = hullPoints(gNodes);
+      if (!hull) continue;
+      const cx = gNodes.reduce((s, n) => s + (n.x ?? 0), 0) / gNodes.length;
+      const cy = gNodes.reduce((s, n) => s + (n.y ?? 0), 0) / gNodes.length;
+      const topY = Math.min(...hull.map((p) => p[1]));
+      hullData.push({
+        group,
+        path: `M${hull.map((p) => p.join(",")).join("L")}Z`,
+        cx,
+        cy,
+        topY,
+      });
+    }
+
+    hullLayer
+      .selectAll<SVGPathElement, (typeof hullData)[0]>("path")
+      .data(hullData)
+      .join("path")
+      .attr("class", "gv-hull")
+      .attr("d", (d) => d.path)
+      .attr("fill", (d) => groupColor(d.group))
+      .attr("fill-opacity", 0.07)
+      .attr("stroke", (d) => groupColor(d.group))
+      .attr("stroke-opacity", 0.38)
+      .attr("stroke-width", 2)
+      .attr("stroke-linejoin", "round")
+      .attr("pointer-events", "none");
+
+    labelLayer
+      .selectAll<SVGTextElement, (typeof hullData)[0]>("text")
+      .data(hullData)
+      .join("text")
+      .attr("x", (d) => d.cx)
+      .attr("y", (d) => d.topY - 7)
+      .attr("text-anchor", "middle")
+      .attr("fill", (d) => groupColor(d.group))
+      .attr("font-size", 11)
+      .attr("font-family", "var(--font-mono)")
+      .attr("font-weight", "500")
+      .attr("letter-spacing", "0.04em")
+      .attr("opacity", 0.85)
+      .attr("pointer-events", "none")
+      .text((d) => d.group);
+
 
     /* Edges — curved arcs, thickness by endpoint degree */
     linkLayer
