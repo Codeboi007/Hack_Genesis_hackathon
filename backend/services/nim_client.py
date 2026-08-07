@@ -294,6 +294,7 @@ class NIMClientPool:
         self._clients: list[NIMClient] = [NIMClient(api_key=k) for k in active]
         self._index = 0
         self._lock: asyncio.Lock | None = None
+        self._global_semaphore: asyncio.Semaphore | None = None
         logger.info(
             "NIM pool initialised | active_keys=%d",
             len(self._clients),
@@ -304,6 +305,14 @@ class NIMClientPool:
     @property
     def enabled(self) -> bool:
         return any(c.enabled for c in self._clients)
+
+    def _get_global_semaphore(self) -> asyncio.Semaphore:
+        if self._global_semaphore is None:
+            # Bound total in-flight requests across ALL keys combined to 10.
+            # NVIDIA NIM free worker pool limits total active requests per model to 16.
+            # Keeping pool in-flight requests <= 10 prevents 503 ResourceExhausted (22/16) errors.
+            self._global_semaphore = asyncio.Semaphore(10)
+        return self._global_semaphore
 
     async def chat(
         self,
@@ -318,16 +327,17 @@ class NIMClientPool:
         if not self._clients:
             logger.info("NIM pool disabled (no API keys configured)")
             return None
-        client = await self._next_client()
-        return await client.chat(
-            model=model,
-            system_prompt=system_prompt,
-            user_prompt=user_prompt,
-            temperature=temperature,
-            call_kind=call_kind,
-            max_tokens=max_tokens,
-            timeout_seconds=timeout_seconds,
-        )
+        async with self._get_global_semaphore():
+            client = await self._next_client()
+            return await client.chat(
+                model=model,
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                temperature=temperature,
+                call_kind=call_kind,
+                max_tokens=max_tokens,
+                timeout_seconds=timeout_seconds,
+            )
 
     async def aclose(self) -> None:
         """Close all connection pools in the pool."""

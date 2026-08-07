@@ -341,7 +341,7 @@ Files:
             system_prompt="You explain code to junior developers. Return strict JSON object only.",
             user_prompt=prompt,
             temperature=0.1,
-            call_kind="agent",
+            call_kind="docs",
         )
         if not out:
             return {}

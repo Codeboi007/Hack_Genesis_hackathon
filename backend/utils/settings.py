@@ -75,9 +75,9 @@ class Settings:
     nim_api_key_3: str = os.getenv("NIM_API_KEY_3", "")
     nim_api_key_4: str = os.getenv("NIM_API_KEY_4", "")
     nim_base_url: str = os.getenv("NIM_BASE_URL", "https://integrate.api.nvidia.com")
-    nim_model_neotron: str = os.getenv("NIM_MODEL_NEOTRON", "nvidia/llama-3.1-nemotron-70b-instruct")
-    nim_model_qwen_docs: str = os.getenv("NIM_MODEL_QWEN_DOCS", "qwen/qwen2.5-coder-32b-instruct")
-    nim_model_qwen_review: str = os.getenv("NIM_MODEL_QWEN_REVIEW", "qwen/qwen2.5-coder-32b-instruct")
+    nim_model_neotron: str = os.getenv("NIM_MODEL_NEOTRON", "meta/llama-3.3-70b-instruct")
+    nim_model_qwen_docs: str = os.getenv("NIM_MODEL_QWEN_DOCS", "meta/llama-3.3-70b-instruct")
+    nim_model_qwen_review: str = os.getenv("NIM_MODEL_QWEN_REVIEW", "meta/llama-3.1-8b-instruct")
     nim_request_timeout_seconds: int = _int_env("NIM_REQUEST_TIMEOUT_SECONDS", 60, minimum=10)
     nim_max_retries: int = _int_env("NIM_MAX_RETRIES", 3, minimum=1)
     nim_max_tokens: int = _int_env("NIM_MAX_TOKENS", 512, minimum=128)
@@ -85,7 +85,7 @@ class Settings:
 
     # Per-call-kind budgets. Short JSON findings need far less headroom than prose
     # summaries or README generation, and giving them less keeps latency bounded.
-    nim_agent_timeout_seconds: int = _int_env("NIM_AGENT_TIMEOUT_SECONDS", 45, minimum=10)
+    nim_agent_timeout_seconds: int = _int_env("NIM_AGENT_TIMEOUT_SECONDS", 60, minimum=10)
     nim_docs_timeout_seconds: int = _int_env("NIM_DOCS_TIMEOUT_SECONDS", 90, minimum=15)
     nim_max_tokens_agent: int = _int_env("NIM_MAX_TOKENS_AGENT", 1024, minimum=128)
     nim_max_tokens_summary: int = _int_env("NIM_MAX_TOKENS_SUMMARY", 2048, minimum=256)
