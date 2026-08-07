@@ -81,23 +81,23 @@ class Settings:
     nim_request_timeout_seconds: int = _int_env("NIM_REQUEST_TIMEOUT_SECONDS", 60, minimum=10)
     nim_max_retries: int = _int_env("NIM_MAX_RETRIES", 3, minimum=1)
     nim_max_tokens: int = _int_env("NIM_MAX_TOKENS", 512, minimum=128)
-    nim_rate_limit_rpm: int = _int_env("NIM_RATE_LIMIT_RPM", 40, minimum=1)
+    nim_rate_limit_rpm: int = _int_env("NIM_RATE_LIMIT_RPM", 180, minimum=1)
 
     # Per-call-kind budgets. Short JSON findings need far less headroom than prose
     # summaries or README generation, and giving them less keeps latency bounded.
-    nim_agent_timeout_seconds: int = _int_env("NIM_AGENT_TIMEOUT_SECONDS", 60, minimum=10)
+    nim_agent_timeout_seconds: int = _int_env("NIM_AGENT_TIMEOUT_SECONDS", 45, minimum=10)
     nim_docs_timeout_seconds: int = _int_env("NIM_DOCS_TIMEOUT_SECONDS", 90, minimum=15)
     nim_max_tokens_agent: int = _int_env("NIM_MAX_TOKENS_AGENT", 1024, minimum=128)
     nim_max_tokens_summary: int = _int_env("NIM_MAX_TOKENS_SUMMARY", 2048, minimum=256)
 
     # How many NIM requests may be in flight at once per client. The RPM pacer still applies.
-    nim_max_concurrency: int = _int_env("NIM_MAX_CONCURRENCY", 6, minimum=1)
+    nim_max_concurrency: int = _int_env("NIM_MAX_CONCURRENCY", 8, minimum=1)
 
     # Review pipeline behaviour
     review_use_langgraph: bool = _bool_env("REVIEW_USE_LANGGRAPH", True)
-    review_max_snippet_chars: int = _int_env("REVIEW_MAX_SNIPPET_CHARS", 2500, minimum=500)
-    review_fastpath_max_chars: int = _int_env("REVIEW_FASTPATH_MAX_CHARS", 3000, minimum=500)
-    review_max_llm_files: int = _int_env("REVIEW_MAX_LLM_FILES", 10, minimum=1)
+    review_max_snippet_chars: int = _int_env("REVIEW_MAX_SNIPPET_CHARS", 1800, minimum=500)
+    review_fastpath_max_chars: int = _int_env("REVIEW_FASTPATH_MAX_CHARS", 5000, minimum=500)
+    review_max_llm_files: int = _int_env("REVIEW_MAX_LLM_FILES", 8, minimum=1)
 
     # Hard caps to prevent job status from staying "processing" forever.
     job_phase_timeout_seconds: int = _int_env("JOB_PHASE_TIMEOUT_SECONDS", 300, minimum=60)

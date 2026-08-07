@@ -169,6 +169,8 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 # ── Health ────────────────────────────────────────────────────────────────────
 
 @app.get("/api/health", response_model=HealthResponse)
+@app.get("/health", response_model=HealthResponse)
+@app.get("/", response_model=HealthResponse)
 def health() -> HealthResponse:
     return HealthResponse(
         status="ok",

@@ -147,7 +147,7 @@ class NIMClient:
                 # Per-request timeouts are passed at call time; this is the ceiling.
                 self._client = httpx.AsyncClient(
                     limits=limits,
-                    timeout=httpx.Timeout(float(settings.nim_docs_timeout_seconds)),
+                    timeout=httpx.Timeout(float(settings.nim_docs_timeout_seconds), connect=15.0),
                     headers={"Content-Type": "application/json"},
                 )
                 logger.info(
@@ -316,9 +316,10 @@ class NIMClientPool:
 
         slots_info = ", ".join(f"slot_{c.key_slot}={c.masked_key}" for c in self._clients) or "none"
         logger.info(
-            "NIM pool initialised | active_keys=%d/%d max_pool_concurrency=10 | %s",
+            "NIM pool initialised | active_keys=%d/%d max_pool_concurrency=%d | %s",
             len(self._clients),
             len(api_keys),
+            len(self._clients) * 6,
             slots_info,
         )
 
@@ -330,10 +331,10 @@ class NIMClientPool:
 
     def _get_global_semaphore(self) -> asyncio.Semaphore:
         if self._global_semaphore is None:
-            # Bound total in-flight requests across ALL keys combined to 10.
-            # NVIDIA NIM free worker pool limits total active requests per model to 16.
-            # Keeping pool in-flight requests <= 10 prevents 503 ResourceExhausted (22/16) errors.
-            self._global_semaphore = asyncio.Semaphore(10)
+            # Dynamically scale pool in-flight concurrency with active keys (up to 24 total).
+            # Each key provides 6 concurrent worker slots.
+            capacity = max(10, len(self._clients) * 6)
+            self._global_semaphore = asyncio.Semaphore(capacity)
         return self._global_semaphore
 
     async def chat(
