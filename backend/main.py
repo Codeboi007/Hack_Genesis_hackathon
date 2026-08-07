@@ -86,28 +86,39 @@ JOB_STALE_TIMEOUT_SECONDS = max(settings.job_stale_timeout_seconds, JOB_PHASE_TI
 
 @app.on_event("startup")
 async def on_startup() -> None:
+    def _mask(k: str) -> str:
+        s = k.strip()
+        if not s:
+            return "<not_set>"
+        if len(s) <= 8:
+            return f"{s[:2]}***"
+        return f"{s[:6]}...{s[-4:]}"
+
+    k1, k2, k3, k4 = (
+        _mask(settings.nim_api_key_1),
+        _mask(settings.nim_api_key_2),
+        _mask(settings.nim_api_key_3),
+        _mask(settings.nim_api_key_4),
+    )
+    fallback_k = _mask(settings.nim_api_key)
+    active_count = sum(bool(k.strip()) for k in [
+        settings.nim_api_key_1,
+        settings.nim_api_key_2,
+        settings.nim_api_key_3,
+        settings.nim_api_key_4,
+    ])
+
     logger.info(
-        "Server started | host=%s port=%s keep_workspaces=%s nim_enabled=%s models=[%s, %s, %s] "
-        "pool_keys=%d",
+        "Server started | host=%s port=%s keep_workspaces=%s | models: review=%s docs=%s neotron=%s | "
+        "pool_keys=%d/4 [K1: %s, K2: %s, K3: %s, K4: %s, Fallback: %s]",
         settings.backend_host,
         settings.backend_port,
         settings.keep_workspaces,
-        bool(
-            settings.nim_api_key
-            or settings.nim_api_key_1
-            or settings.nim_api_key_2
-            or settings.nim_api_key_3
-            or settings.nim_api_key_4
-        ),
-        settings.nim_model_neotron,
-        settings.nim_model_qwen_docs,
         settings.nim_model_qwen_review,
-        sum(bool(k) for k in [
-            settings.nim_api_key_1,
-            settings.nim_api_key_2,
-            settings.nim_api_key_3,
-            settings.nim_api_key_4,
-        ]),
+        settings.nim_model_qwen_docs,
+        settings.nim_model_neotron,
+        active_count,
+        k1, k2, k3, k4, fallback_k,
     )
 
 

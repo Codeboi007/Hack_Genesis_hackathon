@@ -84,6 +84,15 @@ class RatePacer:
             await asyncio.sleep(wait_time)
 
 
+def _mask_key(key: str) -> str:
+    if not key or not key.strip():
+        return "<not_set>"
+    k = key.strip()
+    if len(k) <= 8:
+        return f"{k[:2]}***"
+    return f"{k[:6]}...{k[-4:]}"
+
+
 class NIMClient:
     """
     Async client for NVIDIA NIM chat completions.
@@ -92,7 +101,7 @@ class NIMClient:
     and bounds in-flight requests with a semaphore so LangGraph nodes can fan out safely.
     """
 
-    def __init__(self, api_key: str | None = None) -> None:
+    def __init__(self, api_key: str | None = None, key_slot: int = 1) -> None:
         # Normalise: strip trailing slash, then strip accidental trailing /v1
         # so we can safely append /v1/chat/completions ourselves.
         base = settings.nim_base_url.rstrip("/")
@@ -101,6 +110,8 @@ class NIMClient:
         self.base_url = base
         # Use the role-specific key when given, otherwise the global NIM_API_KEY.
         self.api_key = api_key or settings.nim_api_key
+        self.key_slot = key_slot
+        self.masked_key = _mask_key(self.api_key)
         self._pacer = RatePacer(settings.nim_rate_limit_rpm)
         self._client: httpx.AsyncClient | None = None
         self._semaphore: asyncio.Semaphore | None = None
@@ -200,8 +211,8 @@ class NIMClient:
             for attempt in range(1, _NIM_MAX_RETRIES + 1):
                 if time.perf_counter() >= deadline:
                     logger.warning(
-                        "NIM call budget exhausted | model=%s kind=%s attempt=%d",
-                        model, call_kind, attempt,
+                        "NIM call budget exhausted | model=%s kind=%s attempt=%d key_slot=%d (%s)",
+                        model, call_kind, attempt, self.key_slot, self.masked_key,
                     )
                     return None
 
@@ -209,8 +220,8 @@ class NIMClient:
 
                 started = time.perf_counter()
                 logger.info(
-                    "NIM request started | model=%s kind=%s attempt=%d/%d",
-                    model, call_kind, attempt, _NIM_MAX_RETRIES,
+                    "NIM request started | model=%s kind=%s attempt=%d/%d key_slot=%d (%s) timeout=%ds",
+                    model, call_kind, attempt, _NIM_MAX_RETRIES, self.key_slot, self.masked_key, int(effective_timeout),
                 )
                 try:
                     response = await client.post(
@@ -223,33 +234,36 @@ class NIMClient:
                     data = response.json()
                     elapsed_ms = int((time.perf_counter() - started) * 1000)
                     logger.info(
-                        "NIM request succeeded | model=%s kind=%s attempt=%d elapsed_ms=%d",
-                        model, call_kind, attempt, elapsed_ms,
+                        "NIM request succeeded | model=%s kind=%s attempt=%d elapsed_ms=%d key_slot=%d (%s)",
+                        model, call_kind, attempt, elapsed_ms, self.key_slot, self.masked_key,
                     )
                     return data["choices"][0]["message"]["content"]
                 except httpx.TimeoutException as exc:
                     elapsed_ms = int((time.perf_counter() - started) * 1000)
                     logger.warning(
-                        "NIM timeout | model=%s kind=%s attempt=%d/%d elapsed_ms=%d: %s",
-                        model, call_kind, attempt, _NIM_MAX_RETRIES, elapsed_ms, exc,
+                        "NIM timeout (API took >%ds) | model=%s kind=%s attempt=%d/%d elapsed_ms=%d key_slot=%d (%s): %s",
+                        int(effective_timeout), model, call_kind, attempt, _NIM_MAX_RETRIES, elapsed_ms, self.key_slot, self.masked_key, exc,
                     )
                 except httpx.HTTPStatusError as exc:
                     elapsed_ms = int((time.perf_counter() - started) * 1000)
                     status = exc.response.status_code
                     body = exc.response.text[:300]
                     logger.warning(
-                        "NIM HTTP error %s | model=%s kind=%s attempt=%d/%d elapsed_ms=%d: %s",
-                        status, model, call_kind, attempt, _NIM_MAX_RETRIES, elapsed_ms, body,
+                        "NIM HTTP error %s | model=%s kind=%s attempt=%d/%d elapsed_ms=%d key_slot=%d (%s): %s",
+                        status, model, call_kind, attempt, _NIM_MAX_RETRIES, elapsed_ms, self.key_slot, self.masked_key, body,
                     )
                     # Retry rate-limited and transient upstream failures only.
                     if status not in {429, 500, 502, 503, 504}:
                         logger.warning(
-                            "NIM request aborted (non-retriable status) | model=%s status=%s",
-                            model, status,
+                            "NIM request aborted (non-retriable status) | model=%s status=%s key_slot=%d (%s)",
+                            model, status, self.key_slot, self.masked_key,
                         )
                         return None
                 except Exception as exc:
-                    logger.warning("NIM call failed | model=%s kind=%s: %s", model, call_kind, exc)
+                    logger.warning(
+                        "NIM call failed | model=%s kind=%s key_slot=%d (%s): %s",
+                        model, call_kind, self.key_slot, self.masked_key, exc,
+                    )
                     return None
 
                 if attempt < _NIM_MAX_RETRIES:
@@ -286,18 +300,26 @@ class NIMClientPool:
     """
 
     def __init__(self, api_keys: list[str]) -> None:
-        active = [k.strip() for k in api_keys if k and k.strip()]
-        if not active:
-            # Fallback: single key, same as original behaviour.
+        clients: list[NIMClient] = []
+        for idx, k in enumerate(api_keys, 1):
+            if k and k.strip():
+                clients.append(NIMClient(api_key=k.strip(), key_slot=idx))
+        if not clients:
             fallback = settings.nim_api_key.strip()
-            active = [fallback] if fallback else []
-        self._clients: list[NIMClient] = [NIMClient(api_key=k) for k in active]
+            if fallback:
+                clients.append(NIMClient(api_key=fallback, key_slot=1))
+
+        self._clients: list[NIMClient] = clients
         self._index = 0
         self._lock: asyncio.Lock | None = None
         self._global_semaphore: asyncio.Semaphore | None = None
+
+        slots_info = ", ".join(f"slot_{c.key_slot}={c.masked_key}" for c in self._clients) or "none"
         logger.info(
-            "NIM pool initialised | active_keys=%d",
+            "NIM pool initialised | active_keys=%d/%d max_pool_concurrency=10 | %s",
             len(self._clients),
+            len(api_keys),
+            slots_info,
         )
 
     # ── Public interface (mirrors NIMClient) ──────────────────────────────────
