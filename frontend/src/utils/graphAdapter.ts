@@ -51,14 +51,14 @@ export type VisualizationBundle = {
 /* Muted print hues, matched to GraphView. Semantic green/red stay reserved
    for review findings and are deliberately absent here. */
 export const GROUP_PALETTE = [
-  "#2c5282",
-  "#1f6f4a",
-  "#8a5a00",
-  "#8b3a62",
-  "#5b4b8a",
-  "#8b3a3a",
-  "#a35a1f",
-  "#1f6f6f",
+  "#0f4c81",
+  "#0b6b3a",
+  "#8a4b00",
+  "#8e1f5f",
+  "#4c2889",
+  "#9b1c1c",
+  "#9a4a06",
+  "#0e6b6b",
 ];
 
 type MutableTreeNode = {

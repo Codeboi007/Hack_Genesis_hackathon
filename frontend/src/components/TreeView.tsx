@@ -1,20 +1,10 @@
 "use client";
 
-import {
-  Background,
-  Controls,
-  Edge,
-  MarkerType,
-  Node,
-  ReactFlow,
-  ReactFlowProvider,
-} from "@xyflow/react";
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   TreeNode,
   VisualizationBundle,
-  getConnectedNodeIds,
   getGroupColor,
   getNodeGroupFromPath,
 } from "@/src/utils/graphAdapter";
@@ -24,287 +14,306 @@ type Props = {
   graph: VisualizationBundle["graph"];
   selectedNodeId?: string | null;
   onNodeSelect?: (nodeId: string | null) => void;
-  isExpanded?: boolean;
-  onToggleExpand?: () => void;
 };
 
-type Branch = {
-  id: string;
-  label: string;
-  fileCount: number;
-  leaves: Array<{
-    id: string;
-    label: string;
-    path: string;
-    group: string;
-  }>;
-};
+type Degree = { inbound: number; outbound: number };
 
-function toRgb(color: string): string {
-  const normalized = color.replace("#", "");
-  const expanded =
-    normalized.length === 3
-      ? normalized
-          .split("")
-          .map((char) => char + char)
-          .join("")
-      : normalized;
-  const value = Number.parseInt(expanded, 16);
-  const red = (value >> 16) & 255;
-  const green = (value >> 8) & 255;
-  const blue = value & 255;
-  return `${red}, ${green}, ${blue}`;
-}
+/* ── Helpers ──────────────────────────────────────────────────────────── */
 
-function collectFiles(node: TreeNode): Branch["leaves"] {
-  if (node.type === "file") {
-    return [
-      {
-        id: node.id,
-        label: node.name,
-        path: node.path,
-        group: getNodeGroupFromPath(node.path),
-      },
-    ];
+function collectFolderIds(node: TreeNode, into: Set<string>): Set<string> {
+  if (node.type === "folder") {
+    into.add(node.id);
+    for (const child of node.children) collectFolderIds(child, into);
   }
-
-  return node.children.flatMap(collectFiles);
+  return into;
 }
 
-function buildBranches(tree: TreeNode): Branch[] {
-  const rootFiles = tree.children.filter((child) => child.type === "file");
-  const rootFolders = tree.children.filter((child) => child.type === "folder");
-
-  const branches: Branch[] = [];
-
-  if (rootFiles.length > 0) {
-    branches.push({
-      id: "branch:root",
-      label: "root",
-      fileCount: rootFiles.length,
-      leaves: rootFiles.map((file) => ({
-        id: file.id,
-        label: file.name,
-        path: file.path,
-        group: getNodeGroupFromPath(file.path),
-      })),
-    });
-  }
-
-  for (const folder of rootFolders) {
-    const leaves = collectFiles(folder);
-    if (leaves.length === 0) continue;
-
-    branches.push({
-      id: `branch:${folder.id}`,
-      label: folder.name,
-      fileCount: leaves.length,
-      leaves,
-    });
-  }
-
-  return branches;
+function countFiles(node: TreeNode): number {
+  return node.type === "file"
+    ? 1
+    : node.children.reduce((sum, c) => sum + countFiles(c), 0);
 }
 
-function buildFlow(branches: Branch[], selectedNodeId: string | null, connectedNodeIds: Set<string>) {
-  const nodes: Node[] = [];
-  const edges: Edge[] = [];
-  const hasSelection = Boolean(selectedNodeId);
+/* ── Rows ─────────────────────────────────────────────────────────────── */
 
-  const trunkId = "tree-trunk";
-  const trunkY =
-    branches.length > 0
-      ? branches.reduce((sum, _, index) => sum + index * 150 + 110, 0) / branches.length
-      : 220;
-
-  nodes.push({
-    id: trunkId,
-    position: { x: 90, y: trunkY },
-    draggable: false,
-    selectable: false,
-    data: {
-      label: <span className="treegraph-trunk" />,
-    },
-    style: {
-      border: "none",
-      background: "transparent",
-      boxShadow: "none",
-      width: 24,
-      height: 24,
-      padding: 0,
-    },
-  });
-
-  branches.forEach((branch, branchIndex) => {
-    const leafStartY = branchIndex * 150 + 36;
-    const leafGap = 40;
-    const leafYs = branch.leaves.map((_, leafIndex) => leafStartY + leafIndex * leafGap);
-    const branchY =
-      leafYs.length > 0
-        ? leafYs.reduce((sum, value) => sum + value, 0) / leafYs.length
-        : branchIndex * 150 + 110;
-
-    nodes.push({
-      id: branch.id,
-      position: { x: 500, y: branchY },
-      draggable: false,
-      selectable: false,
-      data: {
-        label: (
-          <div className="treegraph-branch">
-            <span className="treegraph-branch-dot" />
-            <span className="treegraph-branch-label">{branch.label}</span>
-          </div>
-        ),
-      },
-      style: {
-        border: "none",
-        background: "transparent",
-        boxShadow: "none",
-        padding: 0,
-      },
-    });
-
-    edges.push({
-      id: `${trunkId}->${branch.id}`,
-      source: trunkId,
-      target: branch.id,
-      type: "smoothstep",
-      animated: false,
-      style: {
-        stroke: "#d9d9d2",
-        strokeWidth: 1.8,
-      },
-    });
-
-    branch.leaves.forEach((leaf, leafIndex) => {
-      const tint = getGroupColor(leaf.group);
-      const active = connectedNodeIds.has(leaf.id);
-      const isSelected = selectedNodeId === leaf.id;
-
-      nodes.push({
-        id: leaf.id,
-        position: { x: 960, y: leafYs[leafIndex] },
-        draggable: false,
-        selectable: true,
-        data: {
-          label: (
-            <button
-              type="button"
-              className={`treegraph-leaf ${isSelected ? "selected" : ""}`}
-            >
-              <span
-                className="treegraph-leaf-dot"
-                style={{
-                  backgroundColor: tint,
-                  boxShadow: "none",
-                }}
-              />
-              <span className="treegraph-leaf-label">{leaf.label}</span>
-            </button>
-          ),
-        },
-        style: {
-          border: "none",
-          background: "transparent",
-          boxShadow: "none",
-          padding: 0,
-          opacity: hasSelection && !active && !isSelected ? 0.2 : 1,
-        },
-      });
-
-      edges.push({
-        id: `${branch.id}->${leaf.id}`,
-        source: branch.id,
-        target: leaf.id,
-        type: "smoothstep",
-        animated: Boolean(selectedNodeId && active),
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          width: 16,
-          height: 16,
-          color: active ? "#111111" : tint,
-        },
-        style: {
-          stroke: active ? "#111111" : tint,
-          strokeWidth: active ? 2.6 : 2.1,
-          opacity: hasSelection && !active ? 0.12 : 0.72,
-        },
-      });
-    });
-  });
-
-  return { nodes, edges };
-}
-
-function TreeCanvas({
-  tree,
-  graph,
-  selectedNodeId,
-  onNodeSelect,
-  isExpanded = false,
-  onToggleExpand,
-}: Props) {
-  const branches = useMemo(() => buildBranches(tree), [tree]);
-  const connectedNodeIds = useMemo(
-    () => getConnectedNodeIds(graph, selectedNodeId ?? null),
-    [graph, selectedNodeId],
-  );
-  const flow = useMemo(
-    () => buildFlow(branches, selectedNodeId ?? null, connectedNodeIds),
-    [branches, connectedNodeIds, selectedNodeId],
-  );
+function FileRow({
+  node,
+  depth,
+  degree,
+  selected,
+  onSelect,
+}: {
+  node: TreeNode;
+  depth: number;
+  degree?: Degree;
+  selected: boolean;
+  onSelect: (id: string) => void;
+}) {
+  const tint = getGroupColor(getNodeGroupFromPath(node.path));
+  const links = (degree?.inbound ?? 0) + (degree?.outbound ?? 0);
 
   return (
-    <div className="viz-panel tree-panel treegraph-panel">
-      <div className="viz-panel-header">
-        <div>
-          <h3>File tree</h3>
-          <p>Repository structure by top-level layer. Select a leaf to trace it in the graph.</p>
-        </div>
-        <div className="viz-badge-row">
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm viz-expand-btn"
-            onClick={onToggleExpand}
-          >
-            {isExpanded ? "Exit Expanded View" : "Expand Tree"}
-          </button>
-          <span className="viz-badge">{branches.length} branches</span>
-        </div>
-      </div>
+    <button
+      type="button"
+      className={`tv-row tv-file ${selected ? "selected" : ""}`}
+      style={{ paddingLeft: 12 + depth * 20 }}
+      onClick={() => onSelect(node.id)}
+      title={node.path}
+    >
+      <span className="tv-dot" style={{ background: tint }} />
+      <span className="tv-name">{node.name}</span>
+      {links > 0 && (
+        <span className="tv-deg" title={`${degree?.inbound ?? 0} in · ${degree?.outbound ?? 0} out`}>
+          {links}
+        </span>
+      )}
+    </button>
+  );
+}
 
-      <div className="treegraph-canvas">
-        <ReactFlow
-          nodes={flow.nodes}
-          edges={flow.edges}
-          fitView
-          nodesDraggable={false}
-          nodesConnectable={false}
-          elementsSelectable
-          zoomOnDoubleClick={false}
-          minZoom={0.45}
-          maxZoom={1.4}
-          proOptions={{ hideAttribution: true }}
-          colorMode="light"
-          onNodeClick={(_, node) => {
-            if (node.id.startsWith("branch:") || node.id === "tree-trunk") return;
-            onNodeSelect?.(node.id);
-          }}
-          onPaneClick={() => onNodeSelect?.(null)}
-        >
-          <Background gap={26} size={1} color="#eaeae4" />
-          <Controls showInteractive={false} />
-        </ReactFlow>
-      </div>
+function FolderRow({
+  node,
+  depth,
+  open,
+  onToggle,
+}: {
+  node: TreeNode;
+  depth: number;
+  open: boolean;
+  onToggle: (id: string) => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={`tv-row tv-folder ${open ? "open" : ""}`}
+      style={{ paddingLeft: 12 + depth * 20 }}
+      onClick={() => onToggle(node.id)}
+      aria-expanded={open}
+    >
+      <span className="tv-caret" aria-hidden>
+        ▸
+      </span>
+      <span className="tv-name">{node.name}</span>
+      <span className="tv-count">{countFiles(node)}</span>
+    </button>
+  );
+}
+
+function Branch({
+  node,
+  depth,
+  open,
+  degrees,
+  selectedNodeId,
+  onToggle,
+  onSelect,
+}: {
+  node: TreeNode;
+  depth: number;
+  open: Set<string>;
+  degrees: Map<string, Degree>;
+  selectedNodeId: string | null;
+  onToggle: (id: string) => void;
+  onSelect: (id: string) => void;
+}) {
+  if (node.type === "file") {
+    return (
+      <FileRow
+        node={node}
+        depth={depth}
+        degree={degrees.get(node.id)}
+        selected={node.id === selectedNodeId}
+        onSelect={onSelect}
+      />
+    );
+  }
+
+  const isOpen = open.has(node.id);
+
+  return (
+    <div className="tv-branch">
+      <FolderRow node={node} depth={depth} open={isOpen} onToggle={onToggle} />
+      {isOpen && (
+        <div className="tv-children" style={{ marginLeft: 12 + depth * 20 + 7 }}>
+          {node.children.map((child) => (
+            <Branch
+              key={child.id}
+              node={child}
+              depth={0}
+              open={open}
+              degrees={degrees}
+              selectedNodeId={selectedNodeId}
+              onToggle={onToggle}
+              onSelect={onSelect}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-export function TreeView(props: Props) {
+/* ── Root ─────────────────────────────────────────────────────────────── */
+
+export function TreeView({ tree, graph, selectedNodeId, onNodeSelect }: Props) {
+  const allFolders = useMemo(
+    () => collectFolderIds(tree, new Set<string>()),
+    [tree],
+  );
+
+  // Fully expanded on generation: the tree should read at a glance, not be a
+  // set of closed boxes the user has to open one by one.
+  const [open, setOpen] = useState<Set<string>>(allFolders);
+  const [expanded, setExpanded] = useState(false);
+  const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    setOpen(new Set(allFolders));
+  }, [allFolders]);
+
+  useEffect(() => {
+    if (!expanded) return;
+    document.body.classList.add("dx-noscroll");
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setExpanded(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.classList.remove("dx-noscroll");
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [expanded]);
+
+  const degrees = useMemo(() => {
+    const map = new Map<string, Degree>();
+    for (const node of graph.nodes) {
+      map.set(node.id, { inbound: node.inbound, outbound: node.outbound });
+    }
+    return map;
+  }, [graph.nodes]);
+
+  /** Root-level sections: each top-level folder, plus loose root files. */
+  const sections = useMemo(() => {
+    const folders = tree.children.filter((c) => c.type === "folder");
+    const files = tree.children.filter((c) => c.type === "file");
+    const out: Array<{ id: string; label: string; children: TreeNode[]; count: number }> =
+      folders.map((f) => ({
+        id: f.id,
+        label: f.name,
+        children: f.children,
+        count: countFiles(f),
+      }));
+    if (files.length > 0) {
+      out.unshift({
+        id: "root",
+        label: "root",
+        children: files,
+        count: files.length,
+      });
+    }
+    return out;
+  }, [tree]);
+
+  /** Filter is applied to the flattened path, so nested matches survive. */
+  const matches = useCallback(
+    (node: TreeNode): boolean => {
+      if (!query.trim()) return true;
+      const q = query.trim().toLowerCase();
+      if (node.type === "file") return node.path.toLowerCase().includes(q);
+      return node.children.some(matches);
+    },
+    [query],
+  );
+
+  const totalFiles = tree.fileCount;
+  const visibleSections = sections
+    .map((s) => ({ ...s, children: s.children.filter(matches) }))
+    .filter((s) => s.children.length > 0);
+
+  const toggle = useCallback((id: string) => {
+    setOpen((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const select = useCallback(
+    (id: string) => {
+      onNodeSelect?.(id === selectedNodeId ? null : id);
+    },
+    [onNodeSelect, selectedNodeId],
+  );
+
   return (
-    <ReactFlowProvider>
-      <TreeCanvas {...props} />
-    </ReactFlowProvider>
+    <div className={`tv-panel ${expanded ? "tv-expanded" : ""}`}>
+      <div className="tv-head">
+        <div className="tv-head-left">
+          <h3>File tree</h3>
+          <span className="tv-stats">
+            {totalFiles} files · {sections.length} top-level
+          </span>
+        </div>
+
+        <div className="tv-controls">
+          <input
+            className="tv-search"
+            placeholder="Filter files…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            aria-label="Filter files"
+          />
+          <button className="gv-btn wide" onClick={() => setOpen(new Set(allFolders))}>
+            Expand all
+          </button>
+          <button className="gv-btn wide" onClick={() => setOpen(new Set())}>
+            Collapse all
+          </button>
+          <button
+            className="gv-btn wide"
+            onClick={() => setExpanded((v) => !v)}
+            title={expanded ? "Exit fullscreen (Esc)" : "Fullscreen"}
+          >
+            {expanded ? "Exit" : "Expand"}
+          </button>
+        </div>
+      </div>
+
+      <div className="tv-body">
+        {visibleSections.length === 0 ? (
+          <div className="tv-empty">No files match “{query}”.</div>
+        ) : (
+          <div className="tv-columns">
+            {visibleSections.map((section) => (
+              <section className="tv-section" key={section.id}>
+                <header className="tv-section-head">
+                  <span
+                    className="tv-section-swatch"
+                    style={{ background: getGroupColor(section.label) }}
+                  />
+                  <span className="tv-section-name">{section.label}</span>
+                  <span className="tv-section-count">{section.count}</span>
+                </header>
+                <div className="tv-section-body">
+                  {section.children.map((child) => (
+                    <Branch
+                      key={child.id}
+                      node={child}
+                      depth={0}
+                      open={open}
+                      degrees={degrees}
+                      selectedNodeId={selectedNodeId ?? null}
+                      onToggle={toggle}
+                      onSelect={select}
+                    />
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

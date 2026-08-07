@@ -54,11 +54,11 @@
 .dx-brand {
   display: inline-flex;
   align-items: center;
-  gap: 9px;
+  gap: 11px;
   font-family: var(--mono);
-  font-size: 13.5px;
+  font-size: 19px;
   font-weight: 700;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.19em;
   color: var(--ink);
 }
 
@@ -67,10 +67,10 @@
 }
 
 .dx-brand-mark {
-  width: 9px;
-  height: 9px;
+  width: 13px;
+  height: 13px;
   border-radius: 50%;
-  border: 1.5px solid var(--ink);
+  border: 2px solid var(--ink);
   position: relative;
   flex-shrink: 0;
 }
@@ -78,14 +78,14 @@
 .dx-brand-mark::after {
   content: "";
   position: absolute;
-  inset: 2px;
+  inset: 3px;
   border-radius: 50%;
   background: var(--ink);
 }
 
 .dx-crumb {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 12px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--ink-3);
@@ -102,7 +102,7 @@
   align-items: center;
   gap: 8px;
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 12px;
   letter-spacing: 0.13em;
   text-transform: uppercase;
   color: var(--ink-3);
@@ -157,7 +157,7 @@
   border: 1px solid var(--rule);
   color: var(--ink-3);
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 12px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   padding: 7px 13px;
@@ -208,7 +208,7 @@
 
 .dx-sec-num {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11.5px;
   font-weight: 600;
   letter-spacing: 0.08em;
   color: var(--ink);
@@ -216,7 +216,7 @@
 
 .dx-sec-title {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11.5px;
   font-weight: 500;
   letter-spacing: 0.2em;
   text-transform: uppercase;
@@ -245,7 +245,7 @@
   border-right: 1px solid var(--rule);
   color: var(--ink-3);
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   padding: 10px 6px;
@@ -287,7 +287,7 @@
   border-bottom: 1px solid var(--rule);
   color: var(--ink-2);
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 12px;
   letter-spacing: 0.02em;
   padding: 12px 10px;
   cursor: pointer;
@@ -313,7 +313,7 @@
 .dx-label {
   display: block;
   font-family: var(--mono);
-  font-size: 9.5px;
+  font-size: 11px;
   letter-spacing: 0.15em;
   text-transform: uppercase;
   color: var(--ink-3);
@@ -326,7 +326,7 @@
   border: 1px solid var(--rule);
   color: var(--ink);
   font-family: var(--mono);
-  font-size: 12.5px;
+  font-size: 14px;
   padding: 11px 12px;
   outline: none;
   border-radius: 0;
@@ -347,7 +347,7 @@
 
 .dx-input[type="file"] {
   padding: 9px 10px;
-  font-size: 11px;
+  font-size: 12.5px;
   cursor: pointer;
 }
 
@@ -358,7 +358,7 @@
   border: 1px solid var(--rule);
   color: var(--ink-2);
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 12px;
   letter-spacing: 0.11em;
   text-transform: uppercase;
   padding: 10px 12px;
@@ -390,7 +390,7 @@
   border: 1px solid var(--ink);
   color: var(--paper);
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.13em;
   text-transform: uppercase;
@@ -427,7 +427,7 @@
 
 .dx-hint {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11.5px;
   line-height: 1.65;
   color: var(--ink-3);
   margin-top: 7px;
@@ -439,7 +439,7 @@
 .dx-note {
   border-left: 2px solid var(--rule);
   padding: 4px 0 4px 13px;
-  font-size: 12px;
+  font-size: 13.5px;
   line-height: 1.7;
   color: var(--ink-3);
 }
@@ -455,7 +455,7 @@
   border: 1px solid;
   padding: 10px 12px;
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 12px;
   line-height: 1.65;
   word-break: break-word;
 }
@@ -516,7 +516,7 @@
 
 .dx-tab-meta {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 12px;
   letter-spacing: 0.04em;
   color: var(--ink-3);
   transition: color 0.2s var(--ease);
@@ -559,7 +559,7 @@
 
 .dx-empty-code {
   font-family: var(--mono);
-  font-size: 9.5px;
+  font-size: 11px;
   letter-spacing: 0.24em;
   text-transform: uppercase;
   color: var(--ink-3);
@@ -577,7 +577,7 @@
 .dx-empty p {
   margin: 0 auto;
   max-width: 50ch;
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.72;
   color: var(--ink-2);
 }
@@ -594,7 +594,7 @@
   padding: 13px 0;
   border-bottom: 1px solid var(--rule-soft);
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: 13px;
   color: var(--ink-3);
 }
 
@@ -624,11 +624,11 @@
   flex: 1;
   letter-spacing: 0.11em;
   text-transform: uppercase;
-  font-size: 10.5px;
+  font-size: 12px;
 }
 
 .dx-track-state {
-  font-size: 10px;
+  font-size: 11.5px;
   letter-spacing: 0.11em;
   text-transform: uppercase;
   opacity: 0.8;
@@ -667,6 +667,23 @@
 
 .gv-panel.gv-expanded .gv-stage svg {
   height: 100%;
+  min-height: 0;
+}
+
+/* Fullscreen file tree — same contract as the graph's expand. */
+.tv-panel.tv-expanded {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  border: 0;
+  background: var(--paper);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.tv-panel.tv-expanded .tv-body {
+  flex: 1;
   min-height: 0;
 }
 

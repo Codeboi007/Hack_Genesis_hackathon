@@ -18,26 +18,26 @@ type Props = {
 
 /* ─── Group palette ───────────────────────────────────────────────────── */
 
-/* Muted, print-like hues that hold their own against white without shouting.
-   Deliberately avoids the semantic green/red, which are reserved for findings. */
+/* Deep, saturated hues chosen for contrast against white paper — the earlier
+   muted set washed out badly at node size. All are >= 4.5:1 on #FFFFFF. */
 const GROUP_COLORS: Record<string, string> = {
-  backend: "#1f6f4a",
-  frontend: "#1f5f8b",
-  agents: "#8a5a00",
-  rag: "#5b4b8a",
-  docs: "#2c5282",
-  github: "#8b3a3a",
+  backend: "#0b6b3a",
+  frontend: "#0f4c81",
+  agents: "#8a4b00",
+  rag: "#4c2889",
+  docs: "#123f8c",
+  github: "#9b1c1c",
 };
 
 const FALLBACK_COLORS = [
-  "#2c5282",
-  "#1f6f4a",
-  "#8a5a00",
-  "#8b3a62",
-  "#5b4b8a",
-  "#8b3a3a",
-  "#a35a1f",
-  "#1f6f6f",
+  "#0f4c81",
+  "#0b6b3a",
+  "#8a4b00",
+  "#8e1f5f",
+  "#4c2889",
+  "#9b1c1c",
+  "#9a4a06",
+  "#0e6b6b",
 ];
 
 function groupColor(group: string): string {
@@ -62,7 +62,7 @@ const HEIGHT = 620;
 
 function radiusFor(node: AdaptedGraphNode): number {
   // Size by outbound fan-out: files that pull in many others are the ones that matter.
-  return 7 + Math.sqrt(node.outbound) * 4.5;
+  return 11 + Math.sqrt(node.outbound) * 5.5;
 }
 
 /* ─── Component ───────────────────────────────────────────────────────── */
@@ -214,14 +214,15 @@ export function GraphView({ title, graph, selectedNodeId, onNodeSelect }: Props)
         d3
           .forceLink<SimNode, SimLink>(links)
           .id((node) => node.id)
-          .distance((link) => 70 + (link.source as SimNode).degree * 2)
+          .distance((link) => 105 + (link.source as SimNode).degree * 2.5)
           .strength(0.5),
       )
-      .force("charge", d3.forceManyBody<SimNode>().strength((node) => -220 - node.degree * 30))
+      .force("charge", d3.forceManyBody<SimNode>().strength((node) => -420 - node.degree * 40))
       .force("center", d3.forceCenter(WIDTH / 2, HEIGHT / 2))
       .force(
         "collide",
-        d3.forceCollide<SimNode>().radius((node) => radiusFor(node) + 14).iterations(2),
+        // Clears the label as well as the disc, so text stops colliding.
+        d3.forceCollide<SimNode>().radius((node) => radiusFor(node) + 26).iterations(2),
       )
       .force("x", d3.forceX(WIDTH / 2).strength(0.03))
       .force("y", d3.forceY(HEIGHT / 2).strength(0.03))
@@ -324,11 +325,15 @@ export function GraphView({ title, graph, selectedNodeId, onNodeSelect }: Props)
       .attr("y", (d) => d.topY - 7)
       .attr("text-anchor", "middle")
       .attr("fill", (d) => groupColor(d.group))
-      .attr("font-size", 11)
+      .attr("font-size", 15)
       .attr("font-family", "var(--font-mono)")
-      .attr("font-weight", "500")
-      .attr("letter-spacing", "0.04em")
-      .attr("opacity", 0.85)
+      .attr("font-weight", "700")
+      .attr("letter-spacing", "0.08em")
+      .attr("opacity", 1)
+      .attr("paint-order", "stroke")
+      .attr("stroke", "#ffffff")
+      .attr("stroke-width", 4)
+      .attr("stroke-linejoin", "round")
       .attr("pointer-events", "none")
       .text((d) => d.group);
 
@@ -371,9 +376,9 @@ export function GraphView({ title, graph, selectedNodeId, onNodeSelect }: Props)
       .attr("fill", "none")
       .attr("stroke", (link) => groupColor((link.source as SimNode).group))
       .attr("stroke-width", (link) =>
-        Math.min(3.4, 1 + Math.sqrt((link.target as SimNode).inbound) * 0.5),
+        Math.min(5, 1.8 + Math.sqrt((link.target as SimNode).inbound) * 0.8),
       )
-      .attr("stroke-opacity", 0.42)
+      .attr("stroke-opacity", 0.62)
       .attr(
         "marker-end",
         (link) => `url(#arrow-${groupColor((link.source as SimNode).group).replace("#", "")})`,
@@ -414,20 +419,26 @@ export function GraphView({ title, graph, selectedNodeId, onNodeSelect }: Props)
       .attr("class", "gv-dot")
       .attr("r", (node) => radiusFor(node))
       .attr("fill", (node) => groupColor(node.group))
-      .attr("fill-opacity", 0.92)
+      .attr("fill-opacity", 1)
       .attr("stroke", "#ffffff")
-      .attr("stroke-width", 1.5);
+      .attr("stroke-width", 2);
 
     nodeGroups
       .append("text")
       .attr("class", "gv-label")
-      .attr("y", (node) => radiusFor(node) + 13)
+      .attr("y", (node) => radiusFor(node) + 17)
       .attr("text-anchor", "middle")
-      .attr("fill", "#4b4b4b")
-      .attr("font-size", 10)
+      .attr("fill", "#1a1a1a")
+      .attr("font-size", 13)
+      .attr("font-weight", 500)
       .attr("font-family", "var(--font-mono)")
       .attr("pointer-events", "none")
-      .text((node) => (node.label.length > 20 ? `${node.label.slice(0, 19)}…` : node.label));
+      // Halo so labels stay legible where they overlap edges or hulls.
+      .attr("paint-order", "stroke")
+      .attr("stroke", "#ffffff")
+      .attr("stroke-width", 3.5)
+      .attr("stroke-linejoin", "round")
+      .text((node) => (node.label.length > 22 ? `${node.label.slice(0, 21)}…` : node.label));
 
     nodeGroups
       .on("mouseenter", function () {
