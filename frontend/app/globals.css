@@ -1,5 +1,3 @@
-@import "@xyflow/react/dist/style.css";
-
 /* ==========================================================================
    ARGUS — Autonomous Review for GitHub Understanding & Security
    Editorial design system.
@@ -67,7 +65,7 @@ body {
   background: var(--paper);
   color: var(--ink);
   font-family: var(--sans);
-  font-size: 16px;
+  font-size: 17px;
   line-height: 1.65;
   font-feature-settings: "ss01", "cv01";
   -webkit-font-smoothing: antialiased;
@@ -162,7 +160,7 @@ a {
 /* Machine-authored micro-label. */
 .mono-label {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 500;
   letter-spacing: 0.17em;
   text-transform: uppercase;
@@ -199,7 +197,7 @@ a {
 
 .sec-mark-num {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 600;
   letter-spacing: 0.1em;
   color: var(--ink);
@@ -214,7 +212,7 @@ a {
 
 .sec-mark-name {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 500;
   letter-spacing: 0.17em;
   text-transform: uppercase;
@@ -230,7 +228,7 @@ a {
   justify-content: center;
   gap: 8px;
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -268,7 +266,7 @@ a {
 
 .btn-sm {
   padding: 8px 14px;
-  font-size: 10.5px;
+  font-size: 12px;
 }
 
 /* ─── Cards & panels ──────────────────────────────────────────────────── */
@@ -293,7 +291,7 @@ a {
   display: inline-flex;
   align-items: center;
   font-family: var(--mono);
-  font-size: 9.5px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -335,7 +333,7 @@ a {
   height: 18px;
   padding: 0 6px;
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11.5px;
   font-weight: 600;
   color: var(--paper);
   background: var(--ink);
@@ -373,7 +371,7 @@ a {
 
 .summary-stat .lbl {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11.5px;
   font-weight: 500;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -401,20 +399,20 @@ a {
   background: var(--paper-2);
   border-bottom: 1px solid var(--rule);
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 13.5px;
 }
 
 .data-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .data-table th {
   text-align: left;
   padding: 9px 14px;
   font-family: var(--mono);
-  font-size: 9.5px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -442,7 +440,7 @@ a {
 
 .md-render {
   color: var(--ink-2);
-  font-size: 14.5px;
+  font-size: 15.5px;
   line-height: 1.75;
 }
 
@@ -510,7 +508,7 @@ a {
   background: none;
   border: 0;
   padding: 0;
-  font-size: 12.5px;
+  font-size: 14px;
   line-height: 1.65;
 }
 
@@ -561,7 +559,7 @@ summary {
   padding: 11px 14px;
   cursor: pointer;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 500;
   color: var(--ink);
   list-style: none;
@@ -575,7 +573,7 @@ summary::-webkit-details-marker {
 summary::before {
   content: "+";
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: 14px;
   color: var(--ink-3);
   flex-shrink: 0;
 }
@@ -600,7 +598,7 @@ details[open] > summary {
 .detail-body pre {
   margin: 0;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 13.5px;
   line-height: 1.7;
   color: var(--ink-2);
   white-space: pre-wrap;
@@ -618,7 +616,7 @@ details[open] > summary {
   background: var(--amber-soft);
   color: var(--amber);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 500;
   letter-spacing: 0.04em;
 }
@@ -632,7 +630,7 @@ details[open] > summary {
 .ce-kicker {
   display: block;
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11.5px;
   font-weight: 600;
   letter-spacing: 0.17em;
   text-transform: uppercase;
@@ -642,7 +640,7 @@ details[open] > summary {
 
 .ce-prose {
   margin: 0;
-  font-size: 14.5px;
+  font-size: 15.5px;
   line-height: 1.75;
   color: var(--ink-2);
   white-space: pre-wrap;
@@ -662,7 +660,7 @@ details[open] > summary {
   background: transparent;
   color: var(--ink-3);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 500;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -712,13 +710,13 @@ details[open] > summary {
 
 .ce-score-max {
   font-family: var(--mono);
-  font-size: 15px;
+  font-size: 16px;
   color: var(--ink-3);
 }
 
 .ce-health-label {
   margin: 12px 0 0;
-  font-size: 14px;
+  font-size: 15px;
   color: var(--ink-2);
   max-width: 44ch;
 }
@@ -744,14 +742,14 @@ details[open] > summary {
 
 .ce-stat strong {
   font-family: var(--mono);
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 600;
   color: var(--ink);
 }
 
 .ce-stat span {
   font-family: var(--mono);
-  font-size: 9.5px;
+  font-size: 11px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--ink-3);
@@ -795,7 +793,7 @@ details[open] > summary {
   align-items: center;
   gap: 7px;
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 12px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ink-2);
@@ -826,7 +824,7 @@ details[open] > summary {
 
 .ce-section-head p {
   margin: 0;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--ink-3);
 }
 
@@ -864,7 +862,7 @@ details[open] > summary {
 
 .ce-path-badge {
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: 13px;
   color: var(--ink);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -878,7 +876,7 @@ details[open] > summary {
 
 .ce-risk-pill {
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -890,7 +888,7 @@ details[open] > summary {
 
 .ce-file-summary {
   margin: 0;
-  font-size: 13.5px;
+  font-size: 14.5px;
   line-height: 1.65;
   color: var(--ink-2);
 }
@@ -903,7 +901,7 @@ details[open] > summary {
 
 .ce-symbol {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 12px;
   color: var(--ink-2);
   background: var(--paper-2);
   border: 1px solid var(--rule-soft);
@@ -912,14 +910,14 @@ details[open] > summary {
 
 .ce-symbol-more {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 12px;
   color: var(--ink-3);
   align-self: center;
 }
 
 .ce-file-foot {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 12px;
   color: var(--ink-3);
   border-top: 1px solid var(--rule-soft);
   padding-top: 10px;
@@ -962,7 +960,7 @@ details[open] > summary {
 
 .ce-dive-caret {
   color: var(--ink-3);
-  font-size: 10px;
+  font-size: 11.5px;
   transition: transform 0.24s var(--ease);
   flex-shrink: 0;
 }
@@ -973,7 +971,7 @@ details[open] > summary {
 
 .ce-dive-sev {
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -984,7 +982,7 @@ details[open] > summary {
 
 .ce-dive-title {
   flex: 1;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 550;
   letter-spacing: -0.01em;
   color: var(--ink);
@@ -993,14 +991,14 @@ details[open] > summary {
 
 .ce-dive-loc {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12.5px;
   color: var(--ink-3);
   flex-shrink: 0;
 }
 
 .ce-dive-toggle {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11.5px;
   font-weight: 500;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -1034,7 +1032,7 @@ details[open] > summary {
 
 .ce-block p {
   margin: 0;
-  font-size: 13.5px;
+  font-size: 14.5px;
   line-height: 1.72;
   color: var(--ink-2);
   max-width: var(--measure);
@@ -1043,7 +1041,7 @@ details[open] > summary {
 .ce-steps {
   margin: 0;
   padding-left: 16px;
-  font-size: 13.5px;
+  font-size: 14.5px;
   line-height: 1.8;
   color: var(--ink-2);
   max-width: var(--measure);
@@ -1051,7 +1049,7 @@ details[open] > summary {
 
 .ce-steps code {
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: 13px;
   color: var(--ink);
   background: var(--paper-3);
   padding: 1px 5px;
@@ -1067,7 +1065,7 @@ details[open] > summary {
   gap: 10px;
   padding: 9px 12px;
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: 13px;
   line-height: 1.6;
   word-break: break-word;
 }
@@ -1096,7 +1094,7 @@ details[open] > summary {
   border-top: 1px solid var(--rule);
   padding-top: 12px;
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 12px;
   color: var(--ink-3);
 }
 
@@ -1108,7 +1106,7 @@ details[open] > summary {
 .ce-empty {
   text-align: center;
   padding: 44px 24px;
-  font-size: 13.5px;
+  font-size: 14.5px;
   color: var(--ink-3);
   border: 1px dashed var(--rule);
 }
@@ -1150,13 +1148,13 @@ details[open] > summary {
 
 .gv-inline-stats {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12.5px;
   color: var(--ink-2);
 }
 
 .gv-hint {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11.5px;
   letter-spacing: 0.05em;
   color: var(--ink-3);
 }
@@ -1176,7 +1174,7 @@ details[open] > summary {
   border: 1px solid var(--rule);
   color: var(--ink-2);
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 500;
   cursor: pointer;
   transition: color 0.16s var(--ease), border-color 0.16s var(--ease),
@@ -1184,7 +1182,7 @@ details[open] > summary {
 }
 
 .gv-btn.wide {
-  font-size: 10px;
+  font-size: 11.5px;
   letter-spacing: 0.09em;
   text-transform: uppercase;
 }
@@ -1228,7 +1226,7 @@ details[open] > summary {
   padding: 4px 10px;
   color: var(--ink-2);
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 12px;
   cursor: pointer;
   transition: opacity 0.16s var(--ease), border-color 0.16s var(--ease);
 }
@@ -1255,7 +1253,7 @@ details[open] > summary {
 
 .gv-notice {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 12px;
   color: var(--amber);
   background: var(--amber-soft);
   border-bottom: 1px solid #e6d5a8;
@@ -1320,7 +1318,7 @@ details[open] > summary {
   inset: 0;
   display: grid;
   place-items: center;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--ink-3);
   pointer-events: none;
 }
@@ -1356,7 +1354,7 @@ details[open] > summary {
 
 .gv-inspector-head strong {
   flex: 1;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 650;
   letter-spacing: -0.015em;
   color: var(--ink);
@@ -1389,7 +1387,7 @@ details[open] > summary {
 
 .gv-inspector-path {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12.5px;
   color: var(--ink-2);
   background: var(--paper-2);
   border: 1px solid var(--rule-soft);
@@ -1422,7 +1420,7 @@ details[open] > summary {
 
 .gv-inspector-metrics span {
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: 10.5px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--ink-3);
@@ -1430,7 +1428,7 @@ details[open] > summary {
 
 .gv-inspector-metrics strong {
   font-family: var(--mono);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--ink);
 }
@@ -1443,7 +1441,7 @@ details[open] > summary {
 .gv-inspector-kicker {
   display: block;
   font-family: var(--mono);
-  font-size: 9.5px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.15em;
   text-transform: uppercase;
@@ -1467,7 +1465,7 @@ details[open] > summary {
   padding: 7px 2px;
   color: var(--ink-2);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12.5px;
   text-align: left;
   cursor: pointer;
   transition: color 0.15s var(--ease), padding-left 0.15s var(--ease);
@@ -1486,11 +1484,11 @@ details[open] > summary {
 }
 
 .gv-neighbor-empty {
-  font-size: 11.5px;
+  font-size: 13px;
   color: var(--ink-3);
 }
 
-/* ─── Tree view (react-flow) ──────────────────────────────────────────── */
+/* ─── File tree ───────────────────────────────────────────────────────── */
 
 .viz-shell {
   display: grid;
@@ -1501,131 +1499,218 @@ details[open] > summary {
   grid-template-columns: 1fr;
 }
 
-.viz-panel {
-  display: flex;
-  flex-direction: column;
-  min-height: 560px;
+.tv-panel {
   background: var(--paper);
   border: 1px solid var(--rule);
+  display: flex;
+  flex-direction: column;
+  min-height: 620px;
 }
 
-.viz-panel-header {
+.tv-head {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 14px;
+  align-items: center;
+  gap: 16px;
   flex-wrap: wrap;
   padding: 16px 18px;
   border-bottom: 1px solid var(--rule);
 }
 
-.viz-panel-header h3 {
+.tv-head-left h3 {
   margin: 0 0 3px;
-  font-size: 1rem;
+  font-size: 1.1rem;
   font-weight: 650;
   letter-spacing: -0.02em;
   color: var(--ink);
 }
 
-.viz-panel-header p {
-  margin: 0;
+.tv-stats {
+  font-family: var(--mono);
   font-size: 12.5px;
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 
-.viz-badge-row {
+.tv-controls {
   display: flex;
   gap: 6px;
-  align-items: center;
   flex-wrap: wrap;
+  align-items: center;
 }
 
-.viz-badge {
+.tv-search {
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  color: var(--ink-2);
+  font-size: 12.5px;
+  padding: 6px 10px;
   border: 1px solid var(--rule);
-  padding: 3px 8px;
+  background: var(--paper);
+  color: var(--ink);
+  outline: none;
+  width: 170px;
+  border-radius: 0;
 }
 
-.viz-expand-btn {
-  font-family: var(--mono);
+.tv-search:focus {
+  border-color: var(--ink);
 }
 
-.treegraph-panel .react-flow__renderer,
-.treegraph-panel .react-flow__container,
-.treegraph-panel .react-flow {
-  background: transparent;
-}
-
-.treegraph-canvas {
+.tv-body {
   flex: 1;
-  min-height: 500px;
+  min-height: 0;
+  overflow: auto;
+  padding: 18px;
   background:
-    linear-gradient(var(--rule-soft) 1px, transparent 1px) 0 0 / 100% 32px,
-    linear-gradient(90deg, var(--rule-soft) 1px, transparent 1px) 0 0 / 32px 100%,
+    linear-gradient(var(--rule-soft) 1px, transparent 1px) 0 0 / 100% 40px,
     var(--paper);
 }
 
-.treegraph-trunk {
-  display: block;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--ink);
+/* Root folders become columns so the tree fills the canvas instead of
+   running as one narrow ribbon down the left edge. */
+.tv-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  gap: 18px;
+  align-items: start;
 }
 
-.treegraph-branch {
-  display: inline-flex;
+.tv-section {
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  break-inside: avoid;
+}
+
+.tv-section-head {
+  display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
+  padding: 11px 13px;
+  background: var(--paper-2);
+  border-bottom: 1px solid var(--rule);
+}
+
+.tv-section-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.tv-section-name {
+  flex: 1;
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tv-section-count {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--paper);
+  background: var(--ink);
+  padding: 1px 7px;
+  flex-shrink: 0;
+}
+
+.tv-section-body {
+  padding: 6px 0;
+}
+
+/* Rows */
+
+.tv-row {
+  appearance: none;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: transparent;
+  border: 0;
+  padding: 7px 12px;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--mono);
+  font-size: 13.5px;
+  color: var(--ink-2);
+  transition: background 0.14s var(--ease), color 0.14s var(--ease);
+}
+
+.tv-row:hover {
+  background: var(--paper-2);
+  color: var(--ink);
+}
+
+.tv-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.treegraph-branch-dot {
+.tv-folder {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.tv-caret {
+  font-size: 11px;
+  color: var(--ink-3);
+  transition: transform 0.18s var(--ease);
+  flex-shrink: 0;
+  width: 9px;
+}
+
+.tv-folder.open .tv-caret {
+  transform: rotate(90deg);
+}
+
+.tv-count {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ink-3);
+  flex-shrink: 0;
+}
+
+.tv-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--ink-2);
+  flex-shrink: 0;
+  margin-left: 1px;
 }
 
-.treegraph-branch-label {
-  font-family: var(--mono);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ink);
-  letter-spacing: -0.01em;
-}
-
-.treegraph-leaf {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.treegraph-leaf-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-}
-
-.treegraph-leaf-label {
+.tv-deg {
   font-family: var(--mono);
   font-size: 11px;
-  color: var(--ink-2);
-  transition: color 0.15s var(--ease);
+  color: var(--ink-3);
+  border: 1px solid var(--rule);
+  padding: 0 5px;
+  flex-shrink: 0;
 }
 
-.treegraph-leaf:hover .treegraph-leaf-label {
-  color: var(--ink);
+.tv-file.selected {
+  background: var(--ink);
+  color: var(--paper);
 }
 
-.treegraph-leaf.selected .treegraph-leaf-label {
-  color: var(--ink);
-  font-weight: 600;
+.tv-file.selected .tv-deg {
+  color: var(--paper);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* Indent guide */
+.tv-children {
+  border-left: 1px solid var(--rule-soft);
+}
+
+.tv-empty {
+  padding: 60px 20px;
+  text-align: center;
+  font-size: 14.5px;
+  color: var(--ink-3);
 }
 
 /* ─── Scroll reveal primitives ────────────────────────────────────────── */
@@ -1662,9 +1747,20 @@ details[open] > summary {
   }
 
   .gv-stage,
-  .gv-stage svg,
-  .treegraph-canvas {
+  .gv-stage svg {
     min-height: 400px;
+  }
+
+  .tv-panel {
+    min-height: 420px;
+  }
+
+  .tv-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .tv-search {
+    width: 100%;
   }
 }
 

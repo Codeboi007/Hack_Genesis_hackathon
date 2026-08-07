@@ -475,6 +475,16 @@ export default function DashboardPage() {
               )}
             </section>
 
+            <a
+              className="dx-btn"
+              href="https://github.com/apps/argus-onewin"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: "block", textAlign: "center", marginBottom: 18 }}
+            >
+              Download the GitHub App
+            </a>
+
             <div className="dx-note">
               <b>ARGUS</b> — Autonomous Review for GitHub Understanding &amp; Security.
               Persona changes the depth and register of every explanation, from
@@ -567,14 +577,12 @@ export default function DashboardPage() {
                       onNodeSelect={setSelectedNodeId}
                     />
                   ) : (
-                    <div className="viz-shell mode-tree">
-                      <TreeView
-                        tree={visualization.tree}
-                        graph={visualization.graph}
-                        selectedNodeId={selectedNodeId}
-                        onNodeSelect={setSelectedNodeId}
-                      />
-                    </div>
+                    <TreeView
+                      tree={visualization.tree}
+                      graph={visualization.graph}
+                      selectedNodeId={selectedNodeId}
+                      onNodeSelect={setSelectedNodeId}
+                    />
                   )}
                 </div>
               ) : (

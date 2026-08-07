@@ -11,6 +11,9 @@ gsap.registerPlugin(ScrollTrigger);
 
 /* ── Content ──────────────────────────────────────────────────────────── */
 
+/** Installs ARGUS on a repository so pull requests are reviewed automatically. */
+const GITHUB_APP_URL = "https://github.com/apps/argus-onewin";
+
 const SPEC = [
   { k: "Agents", v: "06 parallel" },
   { k: "Surfaces", v: "Review · Docs · Graph" },
@@ -284,6 +287,15 @@ function PageBody() {
               <Link href="/dashboard" className="btn" id="lp-hero-cta">
                 Run an analysis
               </Link>
+              <a
+                href={GITHUB_APP_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-secondary"
+                id="lp-hero-app-cta"
+              >
+                Download the GitHub App
+              </a>
               <a href="#pipeline" className="btn btn-secondary" id="lp-how-cta">
                 How it works
               </a>
@@ -486,6 +498,15 @@ function PageBody() {
             <Link href="/dashboard" className="btn" id="lp-footer-cta">
               Open the dashboard
             </Link>
+            <a
+              href={GITHUB_APP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-secondary"
+              id="lp-footer-app-cta"
+            >
+              Download the GitHub App
+            </a>
           </div>
         </div>
       </section>
