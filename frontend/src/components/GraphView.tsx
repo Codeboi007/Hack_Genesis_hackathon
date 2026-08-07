@@ -69,11 +69,27 @@ export function GraphView({ title, graph, selectedNodeId, onNodeSelect }: Props)
   const svgRef = useRef<SVGSVGElement | null>(null);
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
   const positionsRef = useRef<Map<string, { x: number; y: number }>>(new Map());
+  const unpinAllRef = useRef<(() => void) | null>(null);
 
   const [hiddenGroups, setHiddenGroups] = useState<Set<string>>(new Set());
   const [simplified, setSimplified] = useState(
     graph.nodes.length > SIMPLIFY_THRESHOLD,
   );
+  const [expanded, setExpanded] = useState(false);
+
+  // Lock page scroll while the graph owns the viewport, and let Esc close it.
+  useEffect(() => {
+    if (!expanded) return;
+    document.body.classList.add("dx-noscroll");
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setExpanded(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.classList.remove("dx-noscroll");
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [expanded]);
 
   const allGroups = useMemo(() => {
     const groups = new Set<string>();
@@ -286,7 +302,7 @@ export function GraphView({ title, graph, selectedNodeId, onNodeSelect }: Props)
 
     hullLayer
       .selectAll<SVGPathElement, (typeof hullData)[0]>("path")
-      .data(hullData)
+      .data(hullData, (d) => d.group)
       .join("path")
       .attr("class", "gv-hull")
       .attr("d", (d) => d.path)
@@ -300,7 +316,7 @@ export function GraphView({ title, graph, selectedNodeId, onNodeSelect }: Props)
 
     labelLayer
       .selectAll<SVGTextElement, (typeof hullData)[0]>("text")
-      .data(hullData)
+      .data(hullData, (d) => d.group)
       .join("text")
       .attr("x", (d) => d.cx)
       .attr("y", (d) => d.topY - 7)
@@ -313,6 +329,33 @@ export function GraphView({ title, graph, selectedNodeId, onNodeSelect }: Props)
       .attr("opacity", 0.85)
       .attr("pointer-events", "none")
       .text((d) => d.group);
+
+    /* Recompute the hull/label geometry after nodes move (drag, reheat). */
+    function refreshHulls() {
+      hullData.length = 0;
+      for (const [group, gNodes] of byGroup) {
+        const hull = hullPoints(gNodes);
+        if (!hull) continue;
+        const cx = gNodes.reduce((s, n) => s + (n.x ?? 0), 0) / gNodes.length;
+        const cy = gNodes.reduce((s, n) => s + (n.y ?? 0), 0) / gNodes.length;
+        hullData.push({
+          group,
+          path: `M${hull.map((p) => p.join(",")).join("L")}Z`,
+          cx,
+          cy,
+          topY: Math.min(...hull.map((p) => p[1])),
+        });
+      }
+      hullLayer
+        .selectAll<SVGPathElement, (typeof hullData)[0]>("path")
+        .data(hullData, (d) => d.group)
+        .attr("d", (d) => d.path);
+      labelLayer
+        .selectAll<SVGTextElement, (typeof hullData)[0]>("text")
+        .data(hullData, (d) => d.group)
+        .attr("x", (d) => d.cx)
+        .attr("y", (d) => d.topY - 7);
+    }
 
 
     /* Edges — curved arcs, thickness by endpoint degree */
@@ -350,11 +393,7 @@ export function GraphView({ title, graph, selectedNodeId, onNodeSelect }: Props)
       .attr("class", "gv-node")
       .attr("data-id", (node) => node.id)
       .attr("transform", (node) => `translate(${node.x},${node.y})`)
-      .style("cursor", "pointer")
-      .on("click", (event, node) => {
-        event.stopPropagation();
-        onNodeSelect?.(node.id === selectedNodeId ? null : node.id);
-      });
+      .style("cursor", "grab");
 
     nodeGroups.append("title").text((node) => `${node.path}\n${node.inbound} in · ${node.outbound} out`);
 
@@ -396,6 +435,102 @@ export function GraphView({ title, graph, selectedNodeId, onNodeSelect }: Props)
         d3.select(this).select<SVGCircleElement>(".gv-dot").attr("filter", null);
       });
 
+    /* ── Live redraw ───────────────────────────────────────────────────
+       Positions change during drag, so links/nodes/hulls all reposition
+       from one place that both the initial paint and the tick loop call. */
+    const linkSel = linkLayer.selectAll<SVGPathElement, SimLink>("path");
+
+    function redraw() {
+      linkSel.attr("d", (link) => {
+        const s = link.source as SimNode;
+        const t = link.target as SimNode;
+        const dx = (t.x ?? 0) - (s.x ?? 0);
+        const dy = (t.y ?? 0) - (s.y ?? 0);
+        const dr = Math.sqrt(dx * dx + dy * dy) * 1.9 || 1;
+        return `M${s.x},${s.y}A${dr},${dr} 0 0,1 ${t.x},${t.y}`;
+      });
+      nodeGroups.attr("transform", (node) => `translate(${node.x},${node.y})`);
+      refreshHulls();
+    }
+
+    simulation.on("tick", redraw);
+
+    /* ── Drag ──────────────────────────────────────────────────────────
+       Reheats the simulation so neighbours settle around the dragged node
+       instead of the graph looking like a static picture being scrubbed. */
+    let dragMoved = false;
+    let settleTimer = 0;
+
+    const drag = d3
+      .drag<SVGGElement, SimNode>()
+      .on("start", function (event, node) {
+        dragMoved = false;
+        // Keep the canvas pan gesture from starting on the same mousedown.
+        event.sourceEvent?.stopPropagation();
+        if (!event.active) simulation.alphaTarget(0.22).restart();
+        node.fx = node.x;
+        node.fy = node.y;
+        d3.select(this).classed("dragging", true).style("cursor", "grabbing");
+      })
+      .on("drag", (event, node) => {
+        dragMoved = true;
+        node.fx = event.x;
+        node.fy = event.y;
+        // Paint immediately rather than waiting for the next simulation tick, so the
+        // node tracks the cursor 1:1 even while the physics loop is still reheating.
+        node.x = event.x;
+        node.y = event.y;
+        redraw();
+      })
+      .on("end", function (event, node) {
+        if (!event.active) simulation.alphaTarget(0);
+        // Stay where dropped. Releasing fx/fy here would let the link, collide and
+        // cluster forces drag the node straight back, so the move would look like
+        // it never happened. Double-click unpins; Reset clears every pin.
+        if (dragMoved) {
+          node.fx = node.x;
+          node.fy = node.y;
+          d3.select(this).classed("pinned", true);
+        } else {
+          node.fx = null;
+          node.fy = null;
+        }
+        d3.select(this).classed("dragging", false).style("cursor", "grab");
+        positionsRef.current.set(node.id, { x: node.x ?? 0, y: node.y ?? 0 });
+        // Let neighbours settle, then park the sim so idle CPU returns to zero.
+        settleTimer = window.setTimeout(() => simulation.alpha(0).stop(), 1400);
+      });
+
+    nodeGroups.call(drag);
+
+    // Click must not fire after a drag, or dragging would toggle selection.
+    nodeGroups.on("click", (event, node) => {
+      event.stopPropagation();
+      if (dragMoved) return;
+      onNodeSelect?.(node.id === selectedNodeId ? null : node.id);
+    });
+
+    // Double-click releases a pinned node back to the physics layout.
+    nodeGroups.on("dblclick", function (event, node) {
+      event.stopPropagation();
+      node.fx = null;
+      node.fy = null;
+      d3.select(this).classed("pinned", false);
+      simulation.alpha(0.3).restart();
+      settleTimer = window.setTimeout(() => simulation.alpha(0).stop(), 1600);
+    });
+
+    // Exposed so the Reset control can unpin everything and re-run the layout.
+    unpinAllRef.current = () => {
+      for (const node of nodes) {
+        node.fx = null;
+        node.fy = null;
+      }
+      nodeGroups.classed("pinned", false);
+      simulation.alpha(0.8).restart();
+      settleTimer = window.setTimeout(() => simulation.alpha(0).stop(), 2200);
+    };
+
     svg.on("click", () => onNodeSelect?.(null));
 
     /* Fit the rendered extent into view */
@@ -418,6 +553,8 @@ export function GraphView({ title, graph, selectedNodeId, onNodeSelect }: Props)
     svg.call(zoom.transform, initial);
 
     return () => {
+      window.clearTimeout(settleTimer);
+      simulation.on("tick", null);
       simulation.stop();
       svg.on(".zoom", null);
     };
@@ -486,9 +623,10 @@ export function GraphView({ title, graph, selectedNodeId, onNodeSelect }: Props)
   const resetView = useCallback(() => {
     const svgEl = svgRef.current;
     if (!svgEl || !zoomRef.current) return;
-    // Re-running the layout effect is the reliable way back to the fitted transform.
     setHiddenGroups(new Set());
     onNodeSelect?.(null);
+    // Release every node the user pinned by dragging, and relax the layout.
+    unpinAllRef.current?.();
     d3.select(svgEl)
       .transition()
       .duration(300)
@@ -513,13 +651,14 @@ export function GraphView({ title, graph, selectedNodeId, onNodeSelect }: Props)
   const hiddenCount = graph.nodes.length - visible.nodes.length;
 
   return (
-    <div className="gv-panel">
+    <div className={`gv-panel ${expanded ? "gv-expanded" : ""}`}>
       <div className="gv-controls">
         <div className="gv-controls-left">
           <h3>{title}</h3>
           <span className="gv-inline-stats">
             {visible.nodes.length} nodes · {visible.edges.length} edges
           </span>
+          <span className="gv-hint">drag nodes · scroll to zoom · drag canvas to pan</span>
         </div>
 
         <div className="gv-controls-right">
@@ -538,6 +677,13 @@ export function GraphView({ title, graph, selectedNodeId, onNodeSelect }: Props)
             disabled={!hotspotId}
           >
             Focus Hotspot
+          </button>
+          <button
+            className="gv-btn wide"
+            onClick={() => setExpanded((v) => !v)}
+            title={expanded ? "Exit fullscreen (Esc)" : "Expand to fullscreen"}
+          >
+            {expanded ? "Exit" : "Expand"}
           </button>
         </div>
       </div>

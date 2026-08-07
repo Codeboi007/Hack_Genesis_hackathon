@@ -2053,8 +2053,16 @@ details .detail-body {
   flex-wrap: wrap;
 }
 
+.gv-controls-left {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 14px;
+}
+
 .gv-controls-left h3 {
   margin: 0;
+  flex-basis: 100%;
   font-size: 15px;
   font-weight: 800;
   color: var(--ink);

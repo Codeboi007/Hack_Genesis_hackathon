@@ -1,0 +1,885 @@
+/* ==========================================================================
+   Dashboard — "Instrument" design system
+   Scoped entirely under .dx-shell so the landing page is unaffected.
+
+   Design intent: a technical instrument panel, not a SaaS card grid.
+   Square corners, hairline rules, numbered sections, CAD-style corner ticks,
+   a static blueprint grid instead of animated WebGL, and accent colour used
+   sparingly so it actually means something.
+   ========================================================================== */
+
+.dx-shell {
+  --dx-bg: #06090a;
+  --dx-panel: #0a0e10;
+  --dx-panel-2: #0e1315;
+  --dx-line: #1c2724;
+  --dx-line-2: #131b19;
+  --dx-ink: #dde7df;
+  --dx-dim: #6d8177;
+  --dx-dim-2: #47574f;
+  --dx-accent: #a7ef9e;
+  --dx-accent-dim: rgba(167, 239, 158, 0.1);
+  --dx-warn: #f0c040;
+  --dx-danger: #ff6b6b;
+  --dx-cyan: #5ef8d0;
+
+  position: relative;
+  min-height: 100vh;
+  background-color: var(--dx-bg);
+  color: var(--dx-ink);
+  font-family: var(--font-space-grotesk), system-ui, sans-serif;
+}
+
+/* Blueprint grid: static, cheap, and reads as engineering paper rather than
+   as a generic animated hero background. */
+.dx-grid-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(167, 239, 158, 0.032) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(167, 239, 158, 0.032) 1px, transparent 1px),
+    linear-gradient(rgba(167, 239, 158, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(167, 239, 158, 0.055) 1px, transparent 1px);
+  background-size:
+    28px 28px,
+    28px 28px,
+    140px 140px,
+    140px 140px;
+  mask-image: radial-gradient(ellipse 90% 70% at 50% 30%, #000 35%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 90% 70% at 50% 30%, #000 35%, transparent 100%);
+}
+
+.dx-content {
+  position: relative;
+  z-index: 1;
+}
+
+/* ─── Top bar ─────────────────────────────────────────────────────────── */
+
+.dx-topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 54px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--dx-line);
+  background: rgba(6, 9, 10, 0.88);
+  backdrop-filter: blur(10px);
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
+.dx-brand {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--dx-ink);
+}
+
+.dx-brand em {
+  font-style: normal;
+  color: var(--dx-accent);
+}
+
+.dx-brand-mark {
+  color: var(--dx-accent);
+  opacity: 0.7;
+}
+
+.dx-crumb {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--dx-dim-2);
+}
+
+.dx-topbar-spacer {
+  flex: 1;
+}
+
+/* Instrument-style status readout */
+.dx-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dx-dim);
+  border: 1px solid var(--dx-line);
+  padding: 5px 11px;
+}
+
+.dx-status-led {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dx-dim-2);
+  flex-shrink: 0;
+}
+
+.dx-status[data-state="running"] {
+  color: var(--dx-accent);
+  border-color: rgba(167, 239, 158, 0.3);
+}
+
+.dx-status[data-state="running"] .dx-status-led {
+  background: var(--dx-accent);
+  animation: dx-pulse 1.1s ease-in-out infinite;
+}
+
+.dx-status[data-state="ready"] .dx-status-led {
+  background: var(--dx-accent);
+}
+
+.dx-status[data-state="error"] {
+  color: var(--dx-danger);
+  border-color: rgba(255, 107, 107, 0.3);
+}
+
+.dx-status[data-state="error"] .dx-status-led {
+  background: var(--dx-danger);
+}
+
+@keyframes dx-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+.dx-ghost-btn {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--dx-line);
+  color: var(--dx-dim);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.dx-ghost-btn:hover {
+  color: var(--dx-danger);
+  border-color: rgba(255, 107, 107, 0.4);
+}
+
+/* ─── Body layout ─────────────────────────────────────────────────────── */
+
+.dx-body {
+  display: grid;
+  grid-template-columns: 288px minmax(0, 1fr);
+  align-items: start;
+}
+
+.dx-rail {
+  border-right: 1px solid var(--dx-line);
+  padding: 22px 20px 40px;
+  position: sticky;
+  top: 54px;
+  max-height: calc(100vh - 54px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--dx-line) transparent;
+}
+
+/* The default Windows scrollbar is a bright slab that wrecks the palette. */
+.dx-shell ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.dx-shell ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dx-shell ::-webkit-scrollbar-thumb {
+  background: var(--dx-line);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.dx-shell ::-webkit-scrollbar-thumb:hover {
+  background: var(--dx-dim-2);
+  background-clip: content-box;
+}
+
+.dx-shell ::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.dx-main {
+  padding: 22px 24px 48px;
+  min-width: 0;
+}
+
+/* ─── Rail sections (numbered — schematic feel) ───────────────────────── */
+
+.dx-sec {
+  margin-bottom: 26px;
+}
+
+.dx-sec-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 11px;
+}
+
+.dx-sec-num {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--dx-accent);
+  opacity: 0.65;
+  letter-spacing: 0.05em;
+}
+
+.dx-sec-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--dx-dim);
+}
+
+.dx-sec-rule {
+  flex: 1;
+  height: 1px;
+  background: var(--dx-line);
+}
+
+/* ─── Controls ────────────────────────────────────────────────────────── */
+
+.dx-seg {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  border: 1px solid var(--dx-line);
+}
+
+.dx-seg > button {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-right: 1px solid var(--dx-line);
+  color: var(--dx-dim);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  padding: 9px 6px;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+
+.dx-seg > button:last-child {
+  border-right: 0;
+}
+
+.dx-seg > button:hover:not(:disabled) {
+  color: var(--dx-ink);
+}
+
+.dx-seg > button.on {
+  background: var(--dx-accent-dim);
+  color: var(--dx-accent);
+}
+
+.dx-seg > button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.dx-personas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.dx-persona {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--dx-line);
+  color: var(--dx-dim);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 9px 8px;
+  cursor: pointer;
+  text-align: left;
+  position: relative;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.dx-persona:hover:not(:disabled) {
+  color: var(--dx-ink);
+  border-color: var(--dx-dim-2);
+}
+
+.dx-persona.on {
+  color: var(--dx-accent);
+  border-color: rgba(167, 239, 158, 0.42);
+  background: var(--dx-accent-dim);
+}
+
+/* Left edge marker instead of a filled pill — quieter, more precise. */
+.dx-persona.on::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: -1px;
+  bottom: -1px;
+  width: 2px;
+  background: var(--dx-accent);
+}
+
+.dx-persona:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.dx-label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dx-dim-2);
+  margin-bottom: 6px;
+}
+
+.dx-input {
+  width: 100%;
+  background: var(--dx-panel);
+  border: 1px solid var(--dx-line);
+  color: var(--dx-ink);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  padding: 10px 11px;
+  outline: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.dx-input::placeholder {
+  color: var(--dx-dim-2);
+}
+
+.dx-input:focus {
+  border-color: rgba(167, 239, 158, 0.5);
+  background: var(--dx-panel-2);
+}
+
+.dx-input:disabled {
+  opacity: 0.5;
+}
+
+.dx-input[type="file"] {
+  padding: 8px 10px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.dx-btn {
+  appearance: none;
+  width: 100%;
+  background: transparent;
+  border: 1px solid var(--dx-line);
+  color: var(--dx-dim);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 9px 12px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.dx-btn:hover:not(:disabled) {
+  color: var(--dx-ink);
+  border-color: var(--dx-dim-2);
+}
+
+.dx-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Primary run button — the one loud element on the page. */
+.dx-run {
+  appearance: none;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  background: var(--dx-accent);
+  border: 1px solid var(--dx-accent);
+  color: #05100a;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 13px 12px;
+  cursor: pointer;
+  transition: filter 0.15s, transform 0.08s;
+}
+
+.dx-run:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.dx-run:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.dx-run:disabled {
+  background: transparent;
+  color: var(--dx-dim-2);
+  border-color: var(--dx-line);
+  cursor: not-allowed;
+}
+
+.dx-spinner {
+  width: 11px;
+  height: 11px;
+  border: 1.5px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: dx-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes dx-spin {
+  to { transform: rotate(360deg); }
+}
+
+.dx-hint {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 1.6;
+  color: var(--dx-dim-2);
+  margin-top: 6px;
+}
+
+.dx-hint.ok { color: var(--dx-accent); }
+.dx-hint.bad { color: var(--dx-danger); }
+
+.dx-note {
+  border-left: 2px solid var(--dx-line);
+  padding: 8px 0 8px 11px;
+  font-size: 11.5px;
+  line-height: 1.65;
+  color: var(--dx-dim);
+}
+
+.dx-note b {
+  color: var(--dx-ink);
+  font-weight: 600;
+}
+
+/* Alerts */
+
+.dx-alert {
+  border: 1px solid;
+  padding: 9px 11px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.dx-alert.err {
+  border-color: rgba(255, 107, 107, 0.35);
+  background: rgba(255, 107, 107, 0.07);
+  color: #ffaeae;
+}
+
+.dx-alert.ok {
+  border-color: rgba(167, 239, 158, 0.3);
+  background: var(--dx-accent-dim);
+  color: var(--dx-accent);
+}
+
+/* ─── Main tab bar (the relocated action buttons) ─────────────────────── */
+
+.dx-tabs {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  border: 1px solid var(--dx-line);
+  background: var(--dx-panel);
+  margin-bottom: 20px;
+}
+
+.dx-tab {
+  appearance: none;
+  position: relative;
+  background: transparent;
+  border: 0;
+  border-right: 1px solid var(--dx-line);
+  padding: 15px 18px;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: background 0.18s;
+}
+
+.dx-tab:last-child {
+  border-right: 0;
+}
+
+.dx-tab:hover:not(:disabled) {
+  background: var(--dx-panel-2);
+}
+
+.dx-tab-name {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dx-dim);
+  transition: color 0.18s;
+}
+
+.dx-tab-meta {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  color: var(--dx-dim-2);
+  transition: color 0.18s;
+}
+
+/* Active indicator: a solid bar on the top edge. */
+.dx-tab::after {
+  content: "";
+  position: absolute;
+  inset: -1px -1px auto -1px;
+  height: 2px;
+  background: transparent;
+  transition: background 0.18s;
+}
+
+.dx-tab.on {
+  background: var(--dx-accent-dim);
+}
+
+.dx-tab.on::after {
+  background: var(--dx-accent);
+}
+
+.dx-tab.on .dx-tab-name {
+  color: var(--dx-accent);
+}
+
+.dx-tab.on .dx-tab-meta {
+  color: var(--dx-dim);
+}
+
+.dx-tab:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+/* ─── Panels with CAD corner ticks ────────────────────────────────────── */
+
+.dx-panel {
+  position: relative;
+  background: var(--dx-panel);
+  border: 1px solid var(--dx-line);
+  padding: 18px;
+}
+
+.dx-panel::before,
+.dx-panel::after {
+  content: "";
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-color: var(--dx-accent);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.dx-panel::before {
+  top: -1px;
+  left: -1px;
+  border-top: 1px solid;
+  border-left: 1px solid;
+}
+
+.dx-panel::after {
+  bottom: -1px;
+  right: -1px;
+  border-bottom: 1px solid;
+  border-right: 1px solid;
+}
+
+.dx-panel-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--dx-dim);
+  margin: 0 0 14px;
+}
+
+/* ─── Empty / loading states ──────────────────────────────────────────── */
+
+.dx-empty {
+  border: 1px dashed var(--dx-line);
+  padding: 56px 28px;
+  text-align: center;
+}
+
+.dx-empty-code {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--dx-accent);
+  opacity: 0.6;
+  margin-bottom: 12px;
+}
+
+.dx-empty h3 {
+  margin: 0 0 8px;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--dx-ink);
+}
+
+.dx-empty p {
+  margin: 0 auto;
+  max-width: 46ch;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--dx-dim);
+}
+
+.dx-loading {
+  border: 1px solid var(--dx-line);
+  padding: 20px;
+}
+
+.dx-track {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--dx-line-2);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--dx-dim);
+}
+
+.dx-track:last-child {
+  border-bottom: 0;
+}
+
+.dx-track-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--dx-dim-2);
+  flex-shrink: 0;
+}
+
+.dx-track[data-s="running"] .dx-track-dot {
+  background: var(--dx-accent);
+  animation: dx-pulse 1.1s ease-in-out infinite;
+}
+
+.dx-track[data-s="done"] .dx-track-dot { background: var(--dx-accent); }
+.dx-track[data-s="error"] .dx-track-dot { background: var(--dx-danger); }
+.dx-track[data-s="done"] { color: var(--dx-ink); }
+.dx-track[data-s="error"] { color: var(--dx-danger); }
+
+.dx-track-name {
+  flex: 1;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+
+.dx-track-state {
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.dx-skel {
+  height: 10px;
+  background: linear-gradient(90deg, var(--dx-line-2), var(--dx-line), var(--dx-line-2));
+  background-size: 200% 100%;
+  animation: dx-shimmer 1.4s ease-in-out infinite;
+  margin-top: 9px;
+}
+
+@keyframes dx-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ─── Restyle shared result components inside the dashboard ───────────── */
+
+.dx-shell .card {
+  background: var(--dx-panel);
+  border: 1px solid var(--dx-line);
+  border-radius: 0;
+  box-shadow: none;
+  padding: 18px;
+}
+
+.dx-shell .card-inset {
+  background: var(--dx-panel-2);
+  border: 1px solid var(--dx-line);
+  border-radius: 0;
+}
+
+.dx-shell .badge,
+.dx-shell .ce-path-badge,
+.dx-shell .ce-symbol,
+.dx-shell .ce-risk-pill,
+.dx-shell .gv-chip {
+  border-radius: 0;
+}
+
+.dx-shell .ce-viewswitch,
+.dx-shell .ce-viewswitch-btn,
+.dx-shell .ce-file-card,
+.dx-shell .ce-dive,
+.dx-shell .gv-panel,
+.dx-shell .gv-stage,
+.dx-shell .gv-btn,
+.dx-shell .viz-panel {
+  border-radius: 0;
+}
+
+.dx-shell .ce-file-card:hover {
+  transform: none;
+  border-color: rgba(167, 239, 158, 0.4);
+}
+
+.dx-shell .ce-score {
+  text-shadow: none;
+}
+
+.dx-shell .tabs {
+  border-bottom: 1px solid var(--dx-line);
+}
+
+/* ─── Graph: expanded (fullscreen) mode ───────────────────────────────── */
+
+.gv-panel.gv-expanded {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  border: 0;
+  border-radius: 0;
+  background: var(--dx-bg, #06090a);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.gv-panel.gv-expanded .gv-stage {
+  flex: 1;
+  min-height: 0;
+}
+
+.gv-panel.gv-expanded .gv-stage svg {
+  height: 100%;
+  min-height: 0;
+}
+
+body.dx-noscroll {
+  overflow: hidden;
+}
+
+.gv-node.dragging {
+  cursor: grabbing;
+}
+
+/* A node the user has placed by hand keeps a brighter outline, so it is obvious
+   which positions are manual and which the layout still owns. */
+.gv-node.pinned .gv-dot {
+  stroke: #a7ef9e;
+  stroke-width: 2;
+  stroke-dasharray: 3 2;
+}
+
+.gv-stage svg {
+  cursor: grab;
+}
+
+.gv-stage svg:active {
+  cursor: grabbing;
+}
+
+.gv-hint {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--dx-dim-2, #47574f);
+}
+
+/* ─── Responsive ──────────────────────────────────────────────────────── */
+
+@media (max-width: 1040px) {
+  .dx-body {
+    grid-template-columns: 1fr;
+  }
+
+  .dx-rail {
+    position: static;
+    max-height: none;
+    border-right: 0;
+    border-bottom: 1px solid var(--dx-line);
+  }
+}
+
+@media (max-width: 640px) {
+  .dx-tabs {
+    grid-auto-flow: row;
+  }
+
+  .dx-tab {
+    border-right: 0;
+    border-bottom: 1px solid var(--dx-line);
+  }
+
+  .dx-tab::after {
+    inset: -1px auto -1px -1px;
+    width: 2px;
+    height: auto;
+  }
+
+  .dx-main {
+    padding: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dx-status-led,
+  .dx-track-dot,
+  .dx-skel,
+  .dx-spinner {
+    animation: none;
+  }
+}

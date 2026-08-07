@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import dynamic from "next/dynamic";
 
 import { DocsResults } from "@/components/DocsResults";
 import { ReviewResults } from "@/components/ReviewResults";
@@ -19,9 +18,7 @@ import { GraphView } from "@/src/components/GraphView";
 import { TreeView } from "@/src/components/TreeView";
 import { createVisualizationBundle } from "@/src/utils/graphAdapter";
 
-const FaultyTerminal = dynamic(() => import("@/app/components/FaultyTerminal"), {
-  ssr: false,
-});
+import "./dashboard.css";
 
 const PERSONAS: Persona[] = [
   "Intern",
@@ -31,84 +28,39 @@ const PERSONAS: Persona[] = [
 ];
 const DEMO_REPO = "https://github.com/ShUbHaMHiReMaT/-GoGemba-";
 
-type ResultTab = "review" | "docs" | "graphs";
+type ViewTab = "review" | "docs" | "graphs";
 type InputMode = "repo" | "zip";
-type VisualizationMode = "graph" | "tree";
-
-function LoadingSkeleton() {
-  return (
-    <div className="card" style={{ display: "grid", gap: 14 }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          marginBottom: 4,
-        }}
-      >
-        <div className="spinner" />
-        <span
-          style={{ color: "var(--ink-2)", fontSize: 14, fontWeight: 600 }}
-        >
-          AI agents are processing your repository...
-        </span>
-      </div>
-      {[140, 90, 200, 110, 80].map((h, i) => (
-        <div key={i} className="skeleton" style={{ height: h, borderRadius: 8 }} />
-      ))}
-    </div>
-  );
-}
-
-function EmptyState({ tab }: { tab: ResultTab }) {
-  const map = {
-    review: {
-      icon: "Review",
-      title: "Code Reviewer Ready",
-      desc: "Enter a repository URL or upload a ZIP and click Run to start the multi-agent code review.",
-    },
-    docs: {
-      icon: "Docs",
-      title: "Docs Generator Ready",
-      desc: "Generate README, docstrings, modular docs, onboarding guide, and dependency graphs.",
-    },
-    graphs: {
-      icon: "Graph",
-      title: "Graphs Ready",
-      desc: "Run the Documentation Generator to see dependency, execution, and knowledge graphs.",
-    },
-  };
-
-  const { icon, title, desc } = map[tab];
-  return (
-    <div className="card empty-state">
-      <div className="icon">{icon}</div>
-      <h3>{title}</h3>
-      <p>{desc}</p>
-    </div>
-  );
-}
+type VizMode = "graph" | "tree";
+type TrackState = "idle" | "running" | "done" | "error";
 
 export default function DashboardPage() {
+  /* ── Inputs ─────────────────────────────────────────────────────────── */
   const [persona, setPersona] = useState<Persona>("Student");
   const [repoUrl, setRepoUrl] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [inputMode, setInputMode] = useState<InputMode>("repo");
 
+  const [docsPat, setDocsPat] = useState("");
+  const [encryptedDocsToken, setEncryptedDocsToken] = useState<string | null>(null);
+  const [rawDocsToken, setRawDocsToken] = useState<string | null>(null);
+  const [tokenStatus, setTokenStatus] = useState<string | null>(null);
+  const [tokenOk, setTokenOk] = useState(false);
+  const [verifyingToken, setVerifyingToken] = useState(false);
+
+  /* ── Results ────────────────────────────────────────────────────────── */
   const [reviewData, setReviewData] = useState<ReviewResponse | null>(null);
   const [docsData, setDocsData] = useState<DocsResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [docsPat, setDocsPat] = useState("");
-  const [encryptedDocsToken, setEncryptedDocsToken] = useState<string | null>(null);
-  const [rawDocsToken, setRawDocsToken] = useState<string | null>(null);
-  const [tokenStatus, setTokenStatus] = useState<string | null>(null);
-  const [verifyingToken, setVerifyingToken] = useState(false);
 
-  const [resultTab, setResultTab] = useState<ResultTab>("review");
-  const [visualizationMode, setVisualizationMode] =
-    useState<VisualizationMode>("graph");
+  // Per-track progress so a single run can report each pipeline independently.
+  const [reviewTrack, setReviewTrack] = useState<TrackState>("idle");
+  const [docsTrack, setDocsTrack] = useState<TrackState>("idle");
+
+  /* ── View ───────────────────────────────────────────────────────────── */
+  const [viewTab, setViewTab] = useState<ViewTab>("review");
+  const [vizMode, setVizMode] = useState<VizMode>("graph");
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
   const visualization = useMemo(
@@ -120,73 +72,121 @@ export default function DashboardPage() {
     setSelectedNodeId(null);
   }, [docsData?.run_id]);
 
-  async function run(mode: "repo" | "zip") {
-    if (mode === "repo" && !repoUrl) {
-      setError("Please enter a repository URL.");
+  const hasResults = reviewData !== null || docsData !== null;
+
+  const statusState = loading
+    ? "running"
+    : error && !hasResults
+      ? "error"
+      : hasResults
+        ? "ready"
+        : "idle";
+
+  const statusText = loading
+    ? "Analysing"
+    : error && !hasResults
+      ? "Failed"
+      : hasResults
+        ? "Ready"
+        : "Idle";
+
+  /* ── Run: one action, every pipeline ────────────────────────────────── */
+
+  async function runAll() {
+    if (inputMode === "repo" && !repoUrl.trim()) {
+      setError("Enter a repository URL first.");
       return;
     }
-    if (mode === "zip" && !file) {
-      setError("Please select a ZIP file.");
+    if (inputMode === "zip" && !file) {
+      setError("Select a ZIP file first.");
       return;
     }
+
     setLoading(true);
     setError(null);
     setSuccess(null);
+    setReviewTrack("running");
+    setDocsTrack("running");
 
-    try {
-      if (resultTab === "review" || resultTab === "graphs") {
-        const doReview = resultTab === "review";
-        if (doReview) {
-          const data =
-            mode === "repo"
-              ? await reviewFromRepo(repoUrl, persona)
-              : await reviewFromZip(file!, persona);
-          setReviewData(data);
-          setSuccess(
-            `Review complete - ${data.findings.length} finding(s) across ${data.reviewed_files.length} file(s).`,
-          );
-        } else {
-          const data =
-            mode === "repo"
-              ? await docsFromRepo(repoUrl, persona, {
-                  encryptedDocsToken: encryptedDocsToken ?? undefined,
-                  rawDocsToken: rawDocsToken ?? undefined,
-                })
-              : await docsFromZip(file!, persona);
-          setDocsData(data);
-          setSuccess("Graphs generated successfully.");
-        }
-      } else {
-        const data =
-          mode === "repo"
-            ? await docsFromRepo(repoUrl, persona, {
-                encryptedDocsToken: encryptedDocsToken ?? undefined,
-                rawDocsToken: rawDocsToken ?? undefined,
-              })
-            : await docsFromZip(file!, persona);
+    const reviewTask = (
+      inputMode === "repo"
+        ? reviewFromRepo(repoUrl.trim(), persona)
+        : reviewFromZip(file!, persona)
+    )
+      .then((data) => {
+        setReviewData(data);
+        setReviewTrack("done");
+        return data;
+      })
+      .catch((err) => {
+        setReviewTrack("error");
+        throw err;
+      });
+
+    const docsTask = (
+      inputMode === "repo"
+        ? docsFromRepo(repoUrl.trim(), persona, {
+            encryptedDocsToken: encryptedDocsToken ?? undefined,
+            rawDocsToken: rawDocsToken ?? undefined,
+          })
+        : docsFromZip(file!, persona)
+    )
+      .then((data) => {
         setDocsData(data);
-        setSuccess("Documentation generated successfully.");
-      }
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Request failed. Check the console for details.",
+        setDocsTrack("done");
+        return data;
+      })
+      .catch((err) => {
+        setDocsTrack("error");
+        throw err;
+      });
+
+    // allSettled: one pipeline failing must not discard the other's result.
+    const [reviewResult, docsResult] = await Promise.allSettled([reviewTask, docsTask]);
+
+    const wins: string[] = [];
+    const fails: string[] = [];
+
+    if (reviewResult.status === "fulfilled") {
+      const data = reviewResult.value;
+      wins.push(
+        `Review: ${data.findings.length} finding(s) across ${data.reviewed_files.length} file(s)`,
       );
-    } finally {
-      setLoading(false);
+    } else {
+      fails.push(`Review failed — ${messageOf(reviewResult.reason)}`);
     }
+
+    if (docsResult.status === "fulfilled") {
+      const data = docsResult.value;
+      const nodes = data.dependency_graph?.nodes?.length ?? 0;
+      wins.push(`Docs + graphs: ${nodes} node(s) mapped`);
+    } else {
+      fails.push(`Docs failed — ${messageOf(docsResult.reason)}`);
+    }
+
+    setSuccess(wins.length ? wins.join(" · ") : null);
+    setError(fails.length ? fails.join(" | ") : null);
+
+    // Land on something that actually has content.
+    if (reviewResult.status === "fulfilled") setViewTab("review");
+    else if (docsResult.status === "fulfilled") setViewTab("docs");
+
+    setLoading(false);
   }
 
-  const hasResults = reviewData !== null || docsData !== null;
+  function messageOf(reason: unknown): string {
+    return reason instanceof Error ? reason.message : "unknown error";
+  }
 
   async function handleVerifyDocsToken() {
-    if (!repoUrl) {
-      setError("Enter repository URL before verifying PAT.");
+    if (!repoUrl.trim()) {
+      setTokenStatus("Enter the repository URL below, then verify.");
+      setTokenOk(false);
       return;
     }
     if (!docsPat.trim()) {
-      setError("Enter a fine-grained PAT to verify.");
+      setTokenStatus("Paste a fine-grained PAT to verify.");
+      setTokenOk(false);
       return;
     }
 
@@ -194,28 +194,27 @@ export default function DashboardPage() {
     setTokenStatus(null);
     setVerifyingToken(true);
     try {
-      const result = await verifyDocsToken(repoUrl, docsPat.trim());
+      const result = await verifyDocsToken(repoUrl.trim(), docsPat.trim());
       if (!result.valid || !result.encrypted_token) {
         setEncryptedDocsToken(null);
         setRawDocsToken(null);
+        setTokenOk(false);
         setTokenStatus(result.message || "Token verification failed.");
         return;
       }
 
       setEncryptedDocsToken(result.encrypted_token);
       setRawDocsToken(null);
+      setTokenOk(true);
       setTokenStatus(
-        `PAT verified for ${result.repo_full_name ?? "repo"}${
-          result.default_branch
-            ? ` (default branch: ${result.default_branch})`
-            : ""
-        }.`,
+        `Verified for ${result.repo_full_name ?? "repo"}${
+          result.default_branch ? ` · branch ${result.default_branch}` : ""
+        }`,
       );
       setDocsPat("");
     } catch (err) {
       setEncryptedDocsToken(null);
-      const msg =
-        err instanceof Error ? err.message : "Token verification failed.";
+      const msg = err instanceof Error ? err.message : "Token verification failed.";
       const lower = msg.toLowerCase();
 
       if (
@@ -223,23 +222,24 @@ export default function DashboardPage() {
         lower.includes("not found") ||
         lower.includes("endpoint")
       ) {
-        const fallback = await verifyDocsTokenDirect(repoUrl, docsPat.trim());
+        const fallback = await verifyDocsTokenDirect(repoUrl.trim(), docsPat.trim());
         if (fallback.valid) {
           setRawDocsToken(docsPat.trim());
+          setTokenOk(true);
           setTokenStatus(
-            `PAT verified client-side for ${fallback.repo_full_name ?? "repo"}${
-              fallback.default_branch
-                ? ` (default branch: ${fallback.default_branch})`
-                : ""
-            }.`,
+            `Verified client-side for ${fallback.repo_full_name ?? "repo"}${
+              fallback.default_branch ? ` · branch ${fallback.default_branch}` : ""
+            }`,
           );
           setDocsPat("");
         } else {
           setRawDocsToken(null);
+          setTokenOk(false);
           setTokenStatus(fallback.message || "Token verification failed.");
         }
       } else {
         setRawDocsToken(null);
+        setTokenOk(false);
         setTokenStatus(msg);
       }
     } finally {
@@ -247,387 +247,364 @@ export default function DashboardPage() {
     }
   }
 
+  function clearAll() {
+    setReviewData(null);
+    setDocsData(null);
+    setSuccess(null);
+    setError(null);
+    setReviewTrack("idle");
+    setDocsTrack("idle");
+  }
+
+  /* ── Tab metadata ───────────────────────────────────────────────────── */
+
+  const tabs: Array<{ id: ViewTab; name: string; meta: string; ready: boolean }> = [
+    {
+      id: "review",
+      name: "Review",
+      meta: reviewData
+        ? `${reviewData.findings.length} findings · ${reviewData.reviewed_files.length} files`
+        : "multi-agent analysis",
+      ready: reviewData !== null,
+    },
+    {
+      id: "docs",
+      name: "Docs",
+      meta: docsData
+        ? `readme · ${Object.keys(docsData.modular_docs ?? {}).length} modules`
+        : "readme + onboarding",
+      ready: docsData !== null,
+    },
+    {
+      id: "graphs",
+      name: "Graphs",
+      meta: visualization
+        ? `${visualization.stats.fileCount} files · ${visualization.stats.edgeCount} edges`
+        : "dependency map",
+      ready: docsData !== null,
+    },
+  ];
+
   return (
-    <div className="dashboard-shell">
-      <div className="dashboard-terminal-bg" aria-hidden>
-        <FaultyTerminal
-          scale={1.45}
-          gridMul={[2, 1]}
-          digitSize={1.2}
-          timeScale={0.45}
-          scanlineIntensity={0.45}
-          glitchAmount={1}
-          flickerAmount={1}
-          noiseAmp={1}
-          chromaticAberration={0}
-          dither={0}
-          curvature={0.08}
-          tint="#A7EF9E"
-          mouseReact
-          mouseStrength={0.35}
-          pageLoadAnimation
-          brightness={0.5}
-          style={{ opacity: 0.22 }}
-        />
-      </div>
-      <div className="dashboard-scanlines" aria-hidden />
-      <div className="dashboard-scanbeam" aria-hidden />
+    <div className="dx-shell">
+      <div className="dx-grid-bg" aria-hidden />
 
-      <nav className="nav">
-        <Link href="/" className="nav-brand">
-          <span style={{ marginRight: 8 }}>[]</span>
-          Cypher<span className="nav-brand-dim">AI</span>
-        </Link>
-        <span style={{ color: "var(--border)", fontSize: 18 }}>/</span>
-        <span style={{ color: "var(--ink-2)", fontSize: 14 }}>Dashboard</span>
-        <span className="nav-sep" />
-        {hasResults && (
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={() => {
-              setReviewData(null);
-              setDocsData(null);
-              setSuccess(null);
-              setError(null);
-            }}
-          >
-            Clear results
-          </button>
-        )}
-      </nav>
+      <div className="dx-content">
+        <header className="dx-topbar">
+          <Link href="/" className="dx-brand">
+            <span className="dx-brand-mark">[/]</span>
+            Cypher<em>AI</em>
+          </Link>
+          <span className="dx-crumb">/ Dashboard</span>
 
-      <main className="container dashboard-main" style={{ paddingTop: 20 }}>
-        <div className="dashboard-grid">
-          <aside className="dashboard-sidebar">
-            <div className="card" style={{ display: "grid", gap: 20 }}>
-              <div className="sidebar-section">
-                <div className="label">Action</div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  {(["review", "docs", "graphs"] as ResultTab[]).map((t) => (
-                    <button
-                      key={t}
-                      className={`btn btn-sm ${
-                        resultTab === t ? "btn-primary" : "btn-secondary"
-                      }`}
-                      style={{ flex: 1, textTransform: "capitalize" }}
-                      onClick={() => setResultTab(t)}
-                      disabled={loading}
-                    >
-                      {t === "review"
-                        ? "Review"
-                        : t === "docs"
-                          ? "Docs"
-                          : "Graphs"}
-                    </button>
-                  ))}
-                </div>
+          <span className="dx-topbar-spacer" />
+
+          <span className="dx-status" data-state={statusState}>
+            <span className="dx-status-led" />
+            {statusText}
+          </span>
+
+          {hasResults && !loading && (
+            <button className="dx-ghost-btn" onClick={clearAll}>
+              Clear
+            </button>
+          )}
+        </header>
+
+        <div className="dx-body">
+          {/* ── Left rail ────────────────────────────────────────────── */}
+          <aside className="dx-rail">
+            <section className="dx-sec">
+              <div className="dx-sec-head">
+                <span className="dx-sec-num">01</span>
+                <span className="dx-sec-title">Source</span>
+                <span className="dx-sec-rule" />
               </div>
 
-              <div className="sidebar-section">
-                <div className="label">Persona</div>
-                <div className="persona-grid">
-                  {PERSONAS.map((p) => (
-                    <button
-                      key={p}
-                      className={`persona-chip ${persona === p ? "active" : ""}`}
-                      onClick={() => setPersona(p)}
-                      disabled={loading}
-                    >
-                      {p}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="sidebar-section">
-                <div className="label">Input Source</div>
-                <div style={{ display: "flex", gap: 6 }}>
-                  <button
-                    className={`btn btn-sm ${
-                      inputMode === "repo" ? "btn-primary" : "btn-secondary"
-                    }`}
-                    style={{ flex: 1 }}
-                    onClick={() => setInputMode("repo")}
-                    disabled={loading}
-                  >
-                    GitHub URL
-                  </button>
-                  <button
-                    className={`btn btn-sm ${
-                      inputMode === "zip" ? "btn-primary" : "btn-secondary"
-                    }`}
-                    style={{ flex: 1 }}
-                    onClick={() => setInputMode("zip")}
-                    disabled={loading}
-                  >
-                    ZIP Upload
-                  </button>
-                </div>
+              <div className="dx-seg" style={{ marginBottom: 14 }}>
+                <button
+                  className={inputMode === "repo" ? "on" : ""}
+                  onClick={() => setInputMode("repo")}
+                  disabled={loading}
+                >
+                  GitHub URL
+                </button>
+                <button
+                  className={inputMode === "zip" ? "on" : ""}
+                  onClick={() => setInputMode("zip")}
+                  disabled={loading}
+                >
+                  ZIP Upload
+                </button>
               </div>
 
               {inputMode === "repo" ? (
-                <div className="sidebar-section">
-                  <label htmlFor="repo-url" className="label">
-                    Repository URL
-                  </label>
-                  <input
-                    id="repo-url"
-                    className="input"
-                    placeholder="https://github.com/owner/repo"
-                    value={repoUrl}
-                    onChange={(e) => setRepoUrl(e.target.value)}
-                    disabled={loading}
-                    onKeyDown={(e) => e.key === "Enter" && run("repo")}
-                  />
-                  <button
-                    className="btn btn-ghost btn-sm"
-                    style={{
-                      marginTop: 6,
-                      width: "100%",
-                      justifyContent: "flex-start",
-                    }}
-                    onClick={() => setRepoUrl(DEMO_REPO)}
-                    disabled={loading}
-                  >
-                    Try Demo Repo
-                  </button>
-                  <button
-                    id="run-repo-btn"
-                    className="btn btn-primary btn-full"
-                    style={{ marginTop: 8 }}
-                    onClick={() => run("repo")}
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      <>
-                        <div
-                          className="spinner"
-                          style={{ borderTopColor: "#fff" }}
-                        />
-                        Processing...
-                      </>
-                    ) : (
-                      "Run with Repo URL"
-                    )}
-                  </button>
-
-                  <div
-                    className="card-inset"
-                    style={{ marginTop: 10, display: "grid", gap: 8 }}
-                  >
-                    <label
-                      htmlFor="docs-pat"
-                      className="label"
-                      style={{ marginBottom: 0 }}
-                    >
-                      GitHub PAT for README push (optional)
+                <>
+                  {/* PAT is requested first, then the repository URL. */}
+                  <div style={{ marginBottom: 14 }}>
+                    <label htmlFor="docs-pat" className="dx-label">
+                      GitHub PAT — optional
                     </label>
                     <input
                       id="docs-pat"
-                      className="input"
+                      className="dx-input"
                       type="password"
                       autoComplete="off"
-                      placeholder="github_pat_..."
+                      placeholder="github_pat_…"
                       value={docsPat}
                       onChange={(e) => setDocsPat(e.target.value)}
                       disabled={loading || verifyingToken}
                     />
                     <button
-                      className="btn btn-secondary btn-full"
+                      className="dx-btn"
+                      style={{ marginTop: 6 }}
                       onClick={handleVerifyDocsToken}
                       disabled={loading || verifyingToken}
                     >
-                      {verifyingToken ? "Verifying..." : "Verify + Encrypt PAT"}
+                      {verifyingToken ? "Verifying…" : "Verify + Encrypt"}
                     </button>
-                    {tokenStatus && (
-                      <div
-                        style={{
-                          fontSize: 12,
-                          color: encryptedDocsToken || rawDocsToken
-                            ? "var(--success)"
-                            : "var(--danger)",
-                        }}
-                      >
+                    {tokenStatus ? (
+                      <div className={`dx-hint ${tokenOk ? "ok" : "bad"}`}>
                         {tokenStatus}
+                      </div>
+                    ) : (
+                      <div className="dx-hint">
+                        Enables README push back to the repo. Verification needs the
+                        URL below.
                       </div>
                     )}
                   </div>
-                </div>
+
+                  <div>
+                    <label htmlFor="repo-url" className="dx-label">
+                      Repository URL
+                    </label>
+                    <input
+                      id="repo-url"
+                      className="dx-input"
+                      placeholder="https://github.com/owner/repo"
+                      value={repoUrl}
+                      onChange={(e) => setRepoUrl(e.target.value)}
+                      disabled={loading}
+                      onKeyDown={(e) => e.key === "Enter" && runAll()}
+                    />
+                    <button
+                      className="dx-btn"
+                      style={{ marginTop: 6 }}
+                      onClick={() => setRepoUrl(DEMO_REPO)}
+                      disabled={loading}
+                    >
+                      Load demo repo
+                    </button>
+                  </div>
+                </>
               ) : (
-                <div className="sidebar-section">
-                  <label htmlFor="zip-upload" className="label">
-                    ZIP File
+                <div>
+                  <label htmlFor="zip-upload" className="dx-label">
+                    Archive
                   </label>
                   <input
                     id="zip-upload"
-                    className="input"
+                    className="dx-input"
                     type="file"
                     accept=".zip"
                     onChange={(e) => setFile(e.target.files?.[0] ?? null)}
                     disabled={loading}
-                    style={{ padding: "8px 12px" }}
                   />
                   {file && (
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: "var(--success)",
-                        marginTop: 6,
-                      }}
-                    >
-                      {file.name} ({(file.size / 1024).toFixed(0)} KB)
+                    <div className="dx-hint ok">
+                      {file.name} · {(file.size / 1024).toFixed(0)} KB
                     </div>
                   )}
-                  <button
-                    id="run-zip-btn"
-                    className="btn btn-primary btn-full"
-                    style={{ marginTop: 8 }}
-                    onClick={() => run("zip")}
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      <>
-                        <div
-                          className="spinner"
-                          style={{ borderTopColor: "#fff" }}
-                        />
-                        Processing...
-                      </>
-                    ) : (
-                      "Run with ZIP"
-                    )}
-                  </button>
                 </div>
               )}
+            </section>
+
+            <section className="dx-sec">
+              <div className="dx-sec-head">
+                <span className="dx-sec-num">02</span>
+                <span className="dx-sec-title">Persona</span>
+                <span className="dx-sec-rule" />
+              </div>
+              <div className="dx-personas">
+                {PERSONAS.map((p) => (
+                  <button
+                    key={p}
+                    className={`dx-persona ${persona === p ? "on" : ""}`}
+                    onClick={() => setPersona(p)}
+                    disabled={loading}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            <section className="dx-sec">
+              <div className="dx-sec-head">
+                <span className="dx-sec-num">03</span>
+                <span className="dx-sec-title">Execute</span>
+                <span className="dx-sec-rule" />
+              </div>
+
+              <button className="dx-run" onClick={runAll} disabled={loading}>
+                {loading ? (
+                  <>
+                    <span className="dx-spinner" />
+                    Running
+                  </>
+                ) : (
+                  "Run analysis"
+                )}
+              </button>
+
+              <div className="dx-hint" style={{ marginTop: 8 }}>
+                Runs review, docs and graphs together. Switch tabs to read each
+                result.
+              </div>
 
               {error && (
-                <div className="alert alert-error sidebar-section">{error}</div>
+                <div className="dx-alert err" style={{ marginTop: 12 }}>
+                  {error}
+                </div>
               )}
               {success && (
-                <div className="alert alert-success sidebar-section">
+                <div className="dx-alert ok" style={{ marginTop: 10 }}>
                   {success}
                 </div>
               )}
+            </section>
 
-              <div
-                className="card-inset"
-                style={{
-                  fontSize: 12,
-                  color: "var(--ink-2)",
-                  lineHeight: 1.6,
-                }}
-              >
-                <strong style={{ color: "var(--ink)" }}>Tip:</strong> Select a
-                persona to adapt the output tone. Use "Try Demo Repo" to
-                auto-fill a sample repository.
-              </div>
+            <div className="dx-note">
+              <b>Persona</b> changes the depth and tone of every explanation — from
+              first-week intern to production backend engineer.
             </div>
           </aside>
 
-          <section className="dashboard-results">
-            {loading && <LoadingSkeleton />}
+          {/* ── Main ─────────────────────────────────────────────────── */}
+          <main className="dx-main">
+            <nav className="dx-tabs">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  className={`dx-tab ${viewTab === tab.id ? "on" : ""}`}
+                  onClick={() => setViewTab(tab.id)}
+                >
+                  <span className="dx-tab-name">{tab.name}</span>
+                  <span className="dx-tab-meta">{tab.meta}</span>
+                </button>
+              ))}
+            </nav>
 
-            {!loading && (
-              <>
-                {hasResults && (
-                  <div className="tabs">
-                    {reviewData !== null && (
-                      <button
-                        id="tab-review"
-                        className={`tab ${resultTab === "review" ? "active" : ""}`}
-                        onClick={() => setResultTab("review")}
-                      >
-                        Code Review
-                        <span className="tab-count">
-                          {reviewData.findings.length}
-                        </span>
-                      </button>
-                    )}
-                    {docsData !== null && (
-                      <button
-                        id="tab-docs"
-                        className={`tab ${resultTab === "docs" ? "active" : ""}`}
-                        onClick={() => setResultTab("docs")}
-                      >
-                        Documentation
-                      </button>
-                    )}
-                    {docsData !== null && (
-                      <button
-                        id="tab-graphs"
-                        className={`tab ${resultTab === "graphs" ? "active" : ""}`}
-                        onClick={() => setResultTab("graphs")}
-                      >
-                        Graphs
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {resultTab === "review" &&
-                  (reviewData ? (
-                    <ReviewResults data={reviewData} />
-                  ) : (
-                    <EmptyState tab="review" />
+            {loading && (
+              <div className="dx-loading">
+                <div className="dx-track" data-s={reviewTrack}>
+                  <span className="dx-track-dot" />
+                  <span className="dx-track-name">Code review</span>
+                  <span className="dx-track-state">{reviewTrack}</span>
+                </div>
+                <div className="dx-track" data-s={docsTrack}>
+                  <span className="dx-track-dot" />
+                  <span className="dx-track-name">Docs + graphs</span>
+                  <span className="dx-track-state">{docsTrack}</span>
+                </div>
+                <div style={{ marginTop: 14 }}>
+                  {[100, 72, 88, 54].map((w, i) => (
+                    <div key={i} className="dx-skel" style={{ width: `${w}%` }} />
                   ))}
-
-                {resultTab === "docs" &&
-                  (docsData ? (
-                    <DocsResults data={docsData} />
-                  ) : (
-                    <EmptyState tab="docs" />
-                  ))}
-
-                {resultTab === "graphs" &&
-                  (docsData ? (
-                    <div className="grid" style={{ gap: 16 }}>
-                      <div className="ce-viewswitch">
-                        {(
-                          [
-                            ["graph", "Graph"],
-                            ["tree", "Tree"],
-                          ] as Array<[VisualizationMode, string]>
-                        ).map(([mode, label]) => (
-                          <button
-                            key={mode}
-                            className={`ce-viewswitch-btn ${
-                              visualizationMode === mode ? "active" : ""
-                            }`}
-                            onClick={() => setVisualizationMode(mode)}
-                          >
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-
-                      {visualization && visualizationMode === "graph" && (
-                        <GraphView
-                          title="Dependency Graph"
-                          graph={visualization.graph}
-                          selectedNodeId={selectedNodeId}
-                          onNodeSelect={setSelectedNodeId}
-                        />
-                      )}
-
-                      {visualization && visualizationMode === "tree" && (
-                        <div className="viz-shell mode-tree">
-                          <TreeView
-                            tree={visualization.tree}
-                            graph={visualization.graph}
-                            selectedNodeId={selectedNodeId}
-                            onNodeSelect={setSelectedNodeId}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <EmptyState tab="graphs" />
-                  ))}
-              </>
+                </div>
+              </div>
             )}
-          </section>
+
+            {!loading && viewTab === "review" && (
+              reviewData ? (
+                <ReviewResults data={reviewData} />
+              ) : (
+                <EmptyPanel
+                  code="01 / review"
+                  title="No review yet"
+                  desc="Point at a repository and hit Run analysis. Six rule-based agents plus a routed LLM pass produce ranked, evidence-backed findings."
+                />
+              )
+            )}
+
+            {!loading && viewTab === "docs" && (
+              docsData ? (
+                <DocsResults data={docsData} />
+              ) : (
+                <EmptyPanel
+                  code="02 / docs"
+                  title="No documentation yet"
+                  desc="Run analysis to generate a README, per-module docs, docstrings and an onboarding guide from the parsed source."
+                />
+              )
+            )}
+
+            {!loading && viewTab === "graphs" && (
+              visualization ? (
+                <div style={{ display: "grid", gap: 14 }}>
+                  <div className="dx-seg" style={{ width: 220 }}>
+                    <button
+                      className={vizMode === "graph" ? "on" : ""}
+                      onClick={() => setVizMode("graph")}
+                    >
+                      Graph
+                    </button>
+                    <button
+                      className={vizMode === "tree" ? "on" : ""}
+                      onClick={() => setVizMode("tree")}
+                    >
+                      Tree
+                    </button>
+                  </div>
+
+                  {vizMode === "graph" ? (
+                    <GraphView
+                      title="Dependency Graph"
+                      graph={visualization.graph}
+                      selectedNodeId={selectedNodeId}
+                      onNodeSelect={setSelectedNodeId}
+                    />
+                  ) : (
+                    <div className="viz-shell mode-tree">
+                      <TreeView
+                        tree={visualization.tree}
+                        graph={visualization.graph}
+                        selectedNodeId={selectedNodeId}
+                        onNodeSelect={setSelectedNodeId}
+                      />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <EmptyPanel
+                  code="03 / graphs"
+                  title="No graph yet"
+                  desc="Run analysis to map imports into an interactive dependency graph. Drag nodes, zoom, filter by layer, and expand to fullscreen."
+                />
+              )
+            )}
+          </main>
         </div>
-      </main>
+      </div>
+    </div>
+  );
+}
+
+function EmptyPanel({
+  code,
+  title,
+  desc,
+}: {
+  code: string;
+  title: string;
+  desc: string;
+}) {
+  return (
+    <div className="dx-empty">
+      <div className="dx-empty-code">{code}</div>
+      <h3>{title}</h3>
+      <p>{desc}</p>
     </div>
   );
 }

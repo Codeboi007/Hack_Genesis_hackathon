@@ -238,7 +238,8 @@ separate jobs, and merging them would change route semantics, which Improvement 
 | `backend/models/schemas.py` | No `file_summaries` | Added field (defaulted, backwards compatible) | P2 | 4 |
 | `frontend/components/ReviewResults.tsx` | Raw findings table | Findings/Explainer tab split | P1 | 4 |
 | `frontend/components/CodeExplainer.tsx` *(new)* | — | Health score, file cards, expandable deep-dives | P1 | 4 |
-| `frontend/src/components/GraphView.tsx` | Manual layout, no zoom, rectangles | D3 force-directed, zoom/pan, group colours, slide-in panel | P1 | 5 |
+| `frontend/src/components/GraphView.tsx` | Manual layout, no zoom, rectangles | D3 force-directed, zoom/pan, group colours, slide-in panel, node dragging, fullscreen | P1 | 5 |
+| `docs/graph_builder.py` | `_resolve_import_to_module` only matched bare names — relative (`from .models import`), package-qualified (`requests.models`), JS relative (`./api`) and alias (`@/lib`) imports all resolved to `None`, so real repos produced almost no edges (psf/requests: 63 files → **2 edges**) | Source-relative resolver with package-index and suffix matching (same repo → **93 edges**) | P1 | 5 |
 | `frontend/app/dashboard/page.tsx` | Confusing split/graph/tree tri-mode | Graph ⇄ Tree tabs | P1 | 5 |
 | `backend/services/state_store.py` | Dead + broken | Deleted | P3 | 6 |
 | `github/auth.py` | Dead | Deleted | P3 | 6 |
