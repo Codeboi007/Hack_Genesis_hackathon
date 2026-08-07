@@ -46,7 +46,7 @@
   gap: 16px;
   height: 62px;
   padding: 0 clamp(16px, 3vw, 30px);
-  background: rgba(255, 255, 255, 0.88);
+  background: var(--paper-blur);
   backdrop-filter: saturate(180%) blur(14px);
   border-bottom: 1px solid var(--rule);
 }
@@ -660,18 +660,9 @@
   flex-direction: column;
 }
 
-.gv-panel.gv-expanded .gv-stage {
-  flex: 1;
-  min-height: 0;
-}
-
-.gv-panel.gv-expanded .gv-stage svg {
-  height: 100%;
-  min-height: 0;
-}
-
-/* Fullscreen file tree — same contract as the graph's expand. */
-.tv-panel.tv-expanded {
+/* Fullscreen file tree and 3D view — same contract as the graph's expand. */
+.tv-panel.tv-expanded,
+.vv-panel.vv-expanded {
   position: fixed;
   inset: 0;
   z-index: 200;
@@ -682,8 +673,20 @@
   min-height: 0;
 }
 
-.tv-panel.tv-expanded .tv-body {
+/* Fullscreen swaps the fixed stage height for "whatever is left", so the
+   canvas grows to the viewport instead of staying at its inline size. */
+.gv-panel.gv-expanded .gv-stage,
+.tv-panel.tv-expanded .tv-stage,
+.vv-panel.vv-expanded .vv-stage {
   flex: 1;
+  height: auto;
+  min-height: 0;
+}
+
+.gv-panel.gv-expanded .gv-stage svg,
+.tv-panel.tv-expanded .tv-stage svg,
+.vv-panel.vv-expanded .vv-stage canvas {
+  height: 100%;
   min-height: 0;
 }
 
@@ -692,6 +695,12 @@ body.dx-noscroll {
 }
 
 /* ─── Responsive ──────────────────────────────────────────────────────── */
+
+/* Three-way viz switch (Graph / Tree / 3D). */
+.dx-seg-viz {
+  width: 300px;
+  max-width: 100%;
+}
 
 @media (max-width: 1060px) {
   .dx-body {
@@ -720,6 +729,63 @@ body.dx-noscroll {
     inset: -1px auto -1px -1px;
     width: 2px;
     height: auto;
+  }
+
+  /* ── Phone ──────────────────────────────────────────────────────────
+     The rail becomes the top of a single column, and the topbar sheds
+     everything that is not identity or state. */
+
+  .dx-topbar {
+    height: 56px;
+    gap: 10px;
+    padding: 0 14px;
+  }
+
+  .dx-crumb {
+    display: none;
+  }
+
+  .dx-brand {
+    font-size: 16px;
+    letter-spacing: 0.14em;
+  }
+
+  .dx-status {
+    padding: 5px 9px;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+  }
+
+  .dx-rail {
+    top: 56px;
+    padding: 20px 14px 32px;
+  }
+
+  .dx-main {
+    padding: 20px 14px 56px;
+  }
+
+  /* 16px is the threshold below which iOS Safari zooms the page on focus.
+     Entering a repo URL or a PAT must not fling the layout around. */
+  .dx-input {
+    font-size: 16px;
+    padding: 12px;
+  }
+
+  .dx-seg > button {
+    padding: 12px 6px;
+  }
+
+  .dx-persona {
+    padding: 13px 10px;
+  }
+
+  .dx-run {
+    padding: 15px;
+  }
+
+  .dx-seg-viz {
+    width: 100%;
   }
 }
 

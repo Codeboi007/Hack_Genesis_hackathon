@@ -5,6 +5,8 @@ import { useEffect, useRef } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
+import { ThemeToggle } from "@/src/components/ThemeToggle";
+
 import "./landing.css";
 
 gsap.registerPlugin(ScrollTrigger);
@@ -259,6 +261,7 @@ function PageBody() {
           <a href="#agents" className="lp-nav-link hide-sm">Agents</a>
           <a href="#pipeline" className="lp-nav-link hide-sm">Pipeline</a>
           <a href="#output" className="lp-nav-link hide-sm">Output</a>
+          <ThemeToggle />
           <Link href="/dashboard" className="btn btn-sm" id="lp-nav-cta">
             Open Dashboard
           </Link>

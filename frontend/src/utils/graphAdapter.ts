@@ -1,4 +1,6 @@
 import { DocsResponse, GraphPayload } from "@/lib/types";
+import { groupColor as paletteGroupColor } from "@/src/utils/palette";
+import type { Theme } from "@/src/utils/theme";
 
 export type GraphDatasetKey =
   | "dependency_graph"
@@ -48,18 +50,10 @@ export type VisualizationBundle = {
   };
 };
 
-/* Muted print hues, matched to GraphView. Semantic green/red stay reserved
-   for review findings and are deliberately absent here. */
-export const GROUP_PALETTE = [
-  "#0f4c81",
-  "#0b6b3a",
-  "#8a4b00",
-  "#8e1f5f",
-  "#4c2889",
-  "#9b1c1c",
-  "#9a4a06",
-  "#0e6b6b",
-];
+/* Colour now lives in src/utils/palette.ts so the graph, tree and 3D views
+   share one definition and can switch with the theme. Re-exported here for
+   the existing call sites. */
+export { GROUP_PALETTE, groupColor } from "@/src/utils/palette";
 
 type MutableTreeNode = {
   id: string;
@@ -118,12 +112,9 @@ function getGroup(path: string): string {
   return first || "root";
 }
 
-export function getGroupColor(group: string): string {
-  let hash = 0;
-  for (let index = 0; index < group.length; index += 1) {
-    hash = (hash * 31 + group.charCodeAt(index)) >>> 0;
-  }
-  return GROUP_PALETTE[hash % GROUP_PALETTE.length];
+/** Light-theme group colour. Theme-aware callers should use `groupColor`. */
+export function getGroupColor(group: string, theme: Theme = "light"): string {
+  return paletteGroupColor(group, theme);
 }
 
 export function getNodeGroupFromPath(path: string): string {

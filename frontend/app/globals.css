@@ -48,6 +48,64 @@
   --measure: 62ch;
 
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Graph/tree/3D marks. Redefined for dark so the views stay legible without
+     every D3 call site having to know which theme is active. */
+  --viz-halo: #ffffff;
+  --viz-label: #1a1a1a;
+  --viz-canvas: #ffffff;
+  --viz-grid: rgba(0, 0, 0, 0.05);
+
+  /* Translucent ground for the sticky bars that blur what scrolls under them. */
+  --paper-blur: rgba(255, 255, 255, 0.88);
+}
+
+/* ─── Dark theme ──────────────────────────────────────────────────────────
+   Ink and paper swap roles. The semantic green/red keep their meaning but are
+   lifted toward the light end so they hold contrast against a dark ground. */
+:root[data-theme="dark"] {
+  --paper: #0d0d0f;
+  --paper-2: #16161a;
+  --paper-3: #1f1f25;
+
+  --ink: #f2f2ef;
+  --ink-deep: #ffffff;
+  --ink-2: #b4b4b0;
+  --ink-3: #85857f;
+
+  --rule: #2c2c33;
+  --rule-soft: #232329;
+
+  --green: #3fb950;
+  --green-soft: #10241a;
+  --green-line: #1f5e33;
+  --red: #f85149;
+  --red-soft: #2b1416;
+  --red-line: #6e2b2b;
+  --amber: #e3b341;
+  --amber-soft: #2a2113;
+
+  --viz-halo: #0d0d0f;
+  --viz-label: #f2f2ef;
+  --viz-canvas: #0d0d0f;
+  --viz-grid: rgba(255, 255, 255, 0.06);
+
+  --paper-blur: rgba(13, 13, 15, 0.86);
+}
+
+/* Native form controls and scrollbars follow the theme. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/* Only the palette animates — layout must not, or the whole page reflows. */
+body,
+.dx-shell,
+.gv-panel,
+.tv-panel,
+.vv-panel {
+  transition: background-color 0.25s var(--ease), color 0.25s var(--ease),
+    border-color 0.25s var(--ease);
 }
 
 *,
@@ -1118,6 +1176,7 @@ details[open] > summary {
   border: 1px solid var(--rule);
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .gv-controls {
@@ -1260,6 +1319,9 @@ details[open] > summary {
   padding: 8px 18px;
 }
 
+/* A definite height is load-bearing. With only min-height, an SVG set to
+   height:100% falls back to its intrinsic viewBox ratio, and on a wide screen
+   that makes the stage over 1000px tall. */
 .gv-stage {
   position: relative;
   background:
@@ -1267,14 +1329,13 @@ details[open] > summary {
     linear-gradient(90deg, var(--rule-soft) 1px, transparent 1px) 0 0 / 32px 100%,
     var(--paper);
   overflow: hidden;
-  min-height: 520px;
+  height: clamp(400px, 62vh, 620px);
 }
 
 .gv-stage svg {
   display: block;
   width: 100%;
   height: 100%;
-  min-height: 520px;
   touch-action: none;
   cursor: grab;
 }
@@ -1504,7 +1565,10 @@ details[open] > summary {
   border: 1px solid var(--rule);
   display: flex;
   flex-direction: column;
-  min-height: 620px;
+  /* Grid and flex items default to min-width:auto, which is min-content. The
+     control bar's intrinsic width would then push the panel wider than a
+     phone viewport instead of letting the bar scroll inside it. */
+  min-width: 0;
 }
 
 .tv-head {
@@ -1513,12 +1577,20 @@ details[open] > summary {
   align-items: center;
   gap: 16px;
   flex-wrap: wrap;
-  padding: 16px 18px;
+  padding: 14px 18px;
   border-bottom: 1px solid var(--rule);
 }
 
+.tv-head-left {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
 .tv-head-left h3 {
-  margin: 0 0 3px;
+  margin: 0;
   font-size: 1.1rem;
   font-weight: 650;
   letter-spacing: -0.02em;
@@ -1529,6 +1601,12 @@ details[open] > summary {
   font-family: var(--mono);
   font-size: 12.5px;
   color: var(--ink-2);
+}
+
+.tv-hint {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ink-3);
 }
 
 .tv-controls {
@@ -1546,7 +1624,7 @@ details[open] > summary {
   background: var(--paper);
   color: var(--ink);
   outline: none;
-  width: 170px;
+  width: 160px;
   border-radius: 0;
 }
 
@@ -1554,163 +1632,173 @@ details[open] > summary {
   border-color: var(--ink);
 }
 
-.tv-body {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  padding: 18px;
+/* ─── Diagram stage ───────────────────────────────────────────────────── */
+
+.tv-stage {
+  position: relative;
+  overflow: hidden;
+  height: clamp(420px, 68vh, 680px);
   background:
-    linear-gradient(var(--rule-soft) 1px, transparent 1px) 0 0 / 100% 40px,
+    linear-gradient(var(--viz-grid) 1px, transparent 1px) 0 0 / 100% 44px,
+    linear-gradient(90deg, var(--viz-grid) 1px, transparent 1px) 0 0 / 44px 100%,
     var(--paper);
 }
 
-/* Root folders become columns so the tree fills the canvas instead of
-   running as one narrow ribbon down the left edge. */
-.tv-columns {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
-  gap: 18px;
-  align-items: start;
-}
-
-.tv-section {
-  border: 1px solid var(--rule);
-  background: var(--paper);
-  break-inside: avoid;
-}
-
-.tv-section-head {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 11px 13px;
-  background: var(--paper-2);
-  border-bottom: 1px solid var(--rule);
-}
-
-.tv-section-swatch {
-  width: 10px;
-  height: 10px;
-  border-radius: 2px;
-  flex-shrink: 0;
-}
-
-.tv-section-name {
-  flex: 1;
-  font-family: var(--mono);
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  color: var(--ink);
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.tv-section-count {
-  font-family: var(--mono);
-  font-size: 11.5px;
-  color: var(--paper);
-  background: var(--ink);
-  padding: 1px 7px;
-  flex-shrink: 0;
-}
-
-.tv-section-body {
-  padding: 6px 0;
-}
-
-/* Rows */
-
-.tv-row {
-  appearance: none;
+.tv-stage svg {
+  display: block;
   width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  background: transparent;
-  border: 0;
-  padding: 7px 12px;
-  cursor: pointer;
-  text-align: left;
-  font-family: var(--mono);
-  font-size: 13.5px;
-  color: var(--ink-2);
-  transition: background 0.14s var(--ease), color 0.14s var(--ease);
+  height: 100%;
+  /* The diagram owns pan and pinch; without this the browser scrolls the page
+     out from under the gesture on touch devices. */
+  touch-action: none;
+  cursor: grab;
 }
 
-.tv-row:hover {
-  background: var(--paper-2);
-  color: var(--ink);
+.tv-stage svg:active {
+  cursor: grabbing;
 }
 
-.tv-name {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.tv-node .tv-disc {
+  transition: r 0.18s var(--ease);
 }
 
-.tv-folder {
-  color: var(--ink);
-  font-weight: 600;
+.tv-node:hover .tv-text {
+  fill: var(--ink);
+  font-weight: 700;
 }
 
-.tv-caret {
-  font-size: 11px;
-  color: var(--ink-3);
-  transition: transform 0.18s var(--ease);
-  flex-shrink: 0;
-  width: 9px;
+.tv-node.is-root .tv-text {
+  font-size: 15px;
+  font-weight: 700;
 }
 
-.tv-folder.open .tv-caret {
-  transform: rotate(90deg);
-}
-
-.tv-count {
-  font-family: var(--mono);
-  font-size: 11.5px;
-  color: var(--ink-3);
-  flex-shrink: 0;
-}
-
-.tv-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  margin-left: 1px;
-}
-
-.tv-deg {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--ink-3);
-  border: 1px solid var(--rule);
-  padding: 0 5px;
-  flex-shrink: 0;
-}
-
-.tv-file.selected {
-  background: var(--ink);
-  color: var(--paper);
-}
-
-.tv-file.selected .tv-deg {
-  color: var(--paper);
-  border-color: rgba(255, 255, 255, 0.4);
-}
-
-/* Indent guide */
-.tv-children {
-  border-left: 1px solid var(--rule-soft);
+.tv-link {
+  transition: stroke-opacity 0.18s var(--ease);
 }
 
 .tv-empty {
-  padding: 60px 20px;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   text-align: center;
   font-size: 14.5px;
   color: var(--ink-3);
+  pointer-events: none;
+}
+
+/* ─── 3D space view ───────────────────────────────────────────────────── */
+
+.vv-panel {
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.vv-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.vv-head-left {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.vv-head-left h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.vv-stats {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+
+.vv-hint {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+
+.vv-controls {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.vv-stage {
+  position: relative;
+  height: clamp(420px, 68vh, 680px);
+  background: var(--viz-canvas);
+  overflow: hidden;
+}
+
+.vv-stage canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* The scene consumes drag and pinch itself; without this the page pans
+     instead of the cloud orbiting. */
+  touch-action: none;
+  cursor: grab;
+}
+
+/* A control whose feature is currently switched off reads as recessed. */
+.gv-btn.off {
+  opacity: 0.45;
+}
+
+/* ─── Theme toggle ────────────────────────────────────────────────────── */
+
+.theme-toggle {
+  appearance: none;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+  background: transparent;
+  border: 1px solid var(--rule);
+  color: var(--ink-2);
+  cursor: pointer;
+  border-radius: 0;
+  transition: color 0.16s var(--ease), border-color 0.16s var(--ease),
+    background 0.16s var(--ease);
+}
+
+.theme-toggle:hover {
+  color: var(--ink);
+  border-color: var(--ink);
+  background: var(--paper-2);
+}
+
+/* The icon rotates rather than cross-fading, so the swap reads as one motion. */
+.theme-toggle-icon {
+  display: inline-flex;
+  transition: transform 0.4s var(--ease);
+}
+
+.theme-toggle:hover .theme-toggle-icon {
+  transform: rotate(35deg);
 }
 
 /* ─── Scroll reveal primitives ────────────────────────────────────────── */
@@ -1751,16 +1839,116 @@ details[open] > summary {
     min-height: 400px;
   }
 
-  .tv-panel {
-    min-height: 420px;
+  .tv-panel,
+  .vv-panel {
+    min-height: 460px;
   }
 
-  .tv-columns {
-    grid-template-columns: 1fr;
+  .tv-stage svg,
+  .vv-stage {
+    min-height: 400px;
+  }
+}
+
+/* ─── Phone ───────────────────────────────────────────────────────────────
+   The three visualisations share one control grammar, so they share one set
+   of phone rules: header stacks, controls become a single swipeable row, and
+   the inspector rises from the bottom instead of covering the canvas. */
+
+@media (max-width: 620px) {
+  .gv-controls,
+  .tv-head,
+  .vv-head {
+    flex-direction: column;
+    align-items: stretch;
+    /* Must be reset alongside the direction change: a column container that is
+       still `wrap` overflows into extra columns and grows sideways instead of
+       stacking, which drags the whole page wider than the viewport. */
+    flex-wrap: nowrap;
+    gap: 10px;
+    padding: 12px 13px;
+  }
+
+  .gv-controls-left,
+  .tv-head-left,
+  .vv-head-left {
+    gap: 3px 10px;
+    min-width: 0;
+  }
+
+  .gv-controls-left h3,
+  .tv-head-left h3,
+  .vv-head-left h3 {
+    font-size: 1rem;
+  }
+
+  /* One horizontal strip beats four wrapped rows of buttons on a 360px screen. */
+  .gv-controls-right,
+  .tv-controls,
+  .vv-controls,
+  .gv-legend {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+
+  .gv-controls-right::-webkit-scrollbar,
+  .tv-controls::-webkit-scrollbar,
+  .vv-controls::-webkit-scrollbar,
+  .gv-legend::-webkit-scrollbar {
+    display: none;
+  }
+
+  .gv-legend {
+    padding: 10px 13px;
+  }
+
+  .gv-btn,
+  .gv-chip {
+    flex-shrink: 0;
+    /* 34px keeps the tap target within reach of the 44px guideline once the
+       surrounding gap is counted, without bloating the desktop bar. */
+    height: 34px;
+    min-width: 34px;
   }
 
   .tv-search {
+    width: 150px;
+    flex-shrink: 0;
+    /* Matches .dx-input: below 16px iOS zooms the page on focus. */
+    font-size: 16px;
+  }
+
+  .gv-hint,
+  .tv-hint,
+  .vv-hint {
+    display: none;
+  }
+
+  .gv-stage,
+  .gv-stage svg,
+  .tv-stage svg,
+  .vv-stage {
+    min-height: 340px;
+  }
+
+  /* Bottom sheet: a right-hand drawer would leave almost no canvas visible. */
+  .gv-inspector {
+    top: auto;
+    left: 0;
+    right: 0;
     width: 100%;
+    max-height: 62%;
+    border-left: 0;
+    border-top: 1px solid var(--rule);
+    transform: translateY(100%);
+    padding: 14px 14px 18px;
+  }
+
+  .gv-inspector.open {
+    transform: translateY(0);
   }
 }
 

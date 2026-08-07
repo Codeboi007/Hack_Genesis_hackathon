@@ -15,6 +15,8 @@ import {
 } from "@/lib/api";
 import { DocsResponse, Persona, ReviewResponse } from "@/lib/types";
 import { GraphView } from "@/src/components/GraphView";
+import { SpaceView } from "@/src/components/SpaceView";
+import { ThemeToggle } from "@/src/components/ThemeToggle";
 import { TreeView } from "@/src/components/TreeView";
 import { createVisualizationBundle } from "@/src/utils/graphAdapter";
 
@@ -30,7 +32,7 @@ const DEMO_REPO = "https://github.com/ShUbHaMHiReMaT/-GoGemba-";
 
 type ViewTab = "review" | "docs" | "graphs";
 type InputMode = "repo" | "zip";
-type VizMode = "graph" | "tree";
+type VizMode = "graph" | "tree" | "space";
 type TrackState = "idle" | "running" | "done" | "error";
 
 export default function DashboardPage() {
@@ -304,6 +306,8 @@ export default function DashboardPage() {
             {statusText}
           </span>
 
+          <ThemeToggle />
+
           {hasResults && !loading && (
             <button className="dx-ghost-btn" onClick={clearAll}>
               Clear
@@ -554,7 +558,7 @@ export default function DashboardPage() {
             {!loading && viewTab === "graphs" && (
               visualization ? (
                 <div style={{ display: "grid", gap: 14 }}>
-                  <div className="dx-seg" style={{ width: 220 }}>
+                  <div className="dx-seg dx-seg-viz">
                     <button
                       className={vizMode === "graph" ? "on" : ""}
                       onClick={() => setVizMode("graph")}
@@ -567,18 +571,33 @@ export default function DashboardPage() {
                     >
                       Tree
                     </button>
+                    <button
+                      className={vizMode === "space" ? "on" : ""}
+                      onClick={() => setVizMode("space")}
+                    >
+                      3D
+                    </button>
                   </div>
 
-                  {vizMode === "graph" ? (
+                  {vizMode === "graph" && (
                     <GraphView
                       title="Dependency Graph"
                       graph={visualization.graph}
                       selectedNodeId={selectedNodeId}
                       onNodeSelect={setSelectedNodeId}
                     />
-                  ) : (
+                  )}
+                  {vizMode === "tree" && (
                     <TreeView
                       tree={visualization.tree}
+                      graph={visualization.graph}
+                      selectedNodeId={selectedNodeId}
+                      onNodeSelect={setSelectedNodeId}
+                    />
+                  )}
+                  {vizMode === "space" && (
+                    <SpaceView
+                      title="Dependency Space"
                       graph={visualization.graph}
                       selectedNodeId={selectedNodeId}
                       onNodeSelect={setSelectedNodeId}

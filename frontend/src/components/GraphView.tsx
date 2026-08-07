@@ -8,6 +8,8 @@ import {
   VisualizationBundle,
   getConnectedNodeIds,
 } from "@/src/utils/graphAdapter";
+import { groupColor as paletteColor } from "@/src/utils/palette";
+import { useTheme } from "@/src/utils/theme";
 
 type Props = {
   title: string;
@@ -16,40 +18,6 @@ type Props = {
   onNodeSelect?: (nodeId: string | null) => void;
 };
 
-/* ─── Group palette ───────────────────────────────────────────────────── */
-
-/* Deep, saturated hues chosen for contrast against white paper — the earlier
-   muted set washed out badly at node size. All are >= 4.5:1 on #FFFFFF. */
-const GROUP_COLORS: Record<string, string> = {
-  backend: "#0b6b3a",
-  frontend: "#0f4c81",
-  agents: "#8a4b00",
-  rag: "#4c2889",
-  docs: "#123f8c",
-  github: "#9b1c1c",
-};
-
-const FALLBACK_COLORS = [
-  "#0f4c81",
-  "#0b6b3a",
-  "#8a4b00",
-  "#8e1f5f",
-  "#4c2889",
-  "#9b1c1c",
-  "#9a4a06",
-  "#0e6b6b",
-];
-
-function groupColor(group: string): string {
-  const known = GROUP_COLORS[group.toLowerCase()];
-  if (known) return known;
-  let hash = 0;
-  for (let i = 0; i < group.length; i += 1) {
-    hash = (hash * 31 + group.charCodeAt(i)) >>> 0;
-  }
-  return FALLBACK_COLORS[hash % FALLBACK_COLORS.length];
-}
-
 /* ─── Simulation types ────────────────────────────────────────────────── */
 
 type SimNode = AdaptedGraphNode & d3.SimulationNodeDatum;
@@ -57,6 +25,10 @@ type SimLink = d3.SimulationLinkDatum<SimNode> & { label: string; weight: number
 
 const SIMPLIFY_THRESHOLD = 100;
 const SIM_TICKS = 300;
+
+/* The simulation lives in its own fixed coordinate space; the viewBox tracks
+   the stage's pixel size so the drawing is never letterboxed into the middle
+   of a wide canvas. The zoom transform maps between the two. */
 const WIDTH = 1000;
 const HEIGHT = 620;
 
@@ -69,15 +41,46 @@ function radiusFor(node: AdaptedGraphNode): number {
 
 export function GraphView({ title, graph, selectedNodeId, onNodeSelect }: Props) {
   const svgRef = useRef<SVGSVGElement | null>(null);
+  const stageRef = useRef<HTMLDivElement | null>(null);
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
   const positionsRef = useRef<Map<string, { x: number; y: number }>>(new Map());
   const unpinAllRef = useRef<(() => void) | null>(null);
+
+  const [size, setSize] = useState({ w: WIDTH, h: HEIGHT });
+  const sizeRef = useRef(size);
+  sizeRef.current = size;
+
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const observer = new ResizeObserver(() => {
+      const rect = stage.getBoundingClientRect();
+      const w = Math.max(320, Math.round(rect.width));
+      const h = Math.max(260, Math.round(rect.height));
+      setSize((current) =>
+        current.w === w && current.h === h ? current : { w, h },
+      );
+    });
+    observer.observe(stage);
+    return () => observer.disconnect();
+  }, []);
 
   const [hiddenGroups, setHiddenGroups] = useState<Set<string>>(new Set());
   const [simplified, setSimplified] = useState(
     graph.nodes.length > SIMPLIFY_THRESHOLD,
   );
   const [expanded, setExpanded] = useState(false);
+
+  const theme = useTheme();
+  // Held in a ref as well so the layout effect can read the current theme
+  // without taking it as a dependency — recolouring must never re-run the
+  // simulation, which would scramble positions the user has dragged.
+  const themeRef = useRef(theme);
+  themeRef.current = theme;
+  const colorOf = useCallback(
+    (group: string) => paletteColor(group, themeRef.current),
+    [],
+  );
 
   // Lock page scroll while the graph owns the viewport, and let Esc close it.
   useEffect(() => {
@@ -173,11 +176,16 @@ export function GraphView({ title, graph, selectedNodeId, onNodeSelect }: Props)
     glowMerge.append("feMergeNode").attr("in", "blur");
     glowMerge.append("feMergeNode").attr("in", "SourceGraphic");
 
-    const usedColors = [...new Set(nodes.map((node) => groupColor(node.group)))];
-    for (const color of usedColors) {
+    /* One marker per group rather than per colour: the id then stays stable
+       across a theme switch, so recolouring never has to rewrite marker-end
+       references on every edge. */
+    const usedGroups = [...new Set(nodes.map((node) => node.group))];
+    const markerId = new Map(usedGroups.map((group, i) => [group, `arrow-${i}`]));
+    for (const group of usedGroups) {
       defs
         .append("marker")
-        .attr("id", `arrow-${color.replace("#", "")}`)
+        .attr("id", markerId.get(group)!)
+        .attr("data-group", group)
         .attr("viewBox", "0 -5 10 10")
         .attr("refX", 10)
         .attr("refY", 0)
@@ -186,7 +194,7 @@ export function GraphView({ title, graph, selectedNodeId, onNodeSelect }: Props)
         .attr("orient", "auto")
         .append("path")
         .attr("d", "M0,-4L9,0L0,4")
-        .attr("fill", color)
+        .attr("fill", colorOf(group))
         .attr("opacity", 0.75);
     }
 
@@ -309,9 +317,9 @@ export function GraphView({ title, graph, selectedNodeId, onNodeSelect }: Props)
       .join("path")
       .attr("class", "gv-hull")
       .attr("d", (d) => d.path)
-      .attr("fill", (d) => groupColor(d.group))
+      .attr("fill", (d) => colorOf(d.group))
       .attr("fill-opacity", 0.05)
-      .attr("stroke", (d) => groupColor(d.group))
+      .attr("stroke", (d) => colorOf(d.group))
       .attr("stroke-opacity", 0.28)
       .attr("stroke-width", 2)
       .attr("stroke-linejoin", "round")
@@ -321,17 +329,18 @@ export function GraphView({ title, graph, selectedNodeId, onNodeSelect }: Props)
       .selectAll<SVGTextElement, (typeof hullData)[0]>("text")
       .data(hullData, (d) => d.group)
       .join("text")
+      .attr("class", "gv-group-label")
       .attr("x", (d) => d.cx)
       .attr("y", (d) => d.topY - 7)
       .attr("text-anchor", "middle")
-      .attr("fill", (d) => groupColor(d.group))
+      .attr("fill", (d) => colorOf(d.group))
       .attr("font-size", 15)
       .attr("font-family", "var(--font-mono)")
       .attr("font-weight", "700")
       .attr("letter-spacing", "0.08em")
       .attr("opacity", 1)
       .attr("paint-order", "stroke")
-      .attr("stroke", "#ffffff")
+      .attr("stroke", "var(--viz-halo)")
       .attr("stroke-width", 4)
       .attr("stroke-linejoin", "round")
       .attr("pointer-events", "none")
@@ -374,14 +383,15 @@ export function GraphView({ title, graph, selectedNodeId, onNodeSelect }: Props)
       .attr("data-source", (link) => (link.source as SimNode).id)
       .attr("data-target", (link) => (link.target as SimNode).id)
       .attr("fill", "none")
-      .attr("stroke", (link) => groupColor((link.source as SimNode).group))
+      .attr("data-group", (link) => (link.source as SimNode).group)
+      .attr("stroke", (link) => colorOf((link.source as SimNode).group))
       .attr("stroke-width", (link) =>
         Math.min(5, 1.8 + Math.sqrt((link.target as SimNode).inbound) * 0.8),
       )
       .attr("stroke-opacity", 0.62)
       .attr(
         "marker-end",
-        (link) => `url(#arrow-${groupColor((link.source as SimNode).group).replace("#", "")})`,
+        (link) => `url(#${markerId.get((link.source as SimNode).group)})`,
       )
       .attr("d", (link) => {
         const s = link.source as SimNode;
@@ -410,7 +420,7 @@ export function GraphView({ title, graph, selectedNodeId, onNodeSelect }: Props)
       .attr("class", "gv-ring")
       .attr("r", (node) => radiusFor(node) + 5)
       .attr("fill", "none")
-      .attr("stroke", (node) => groupColor(node.group))
+      .attr("stroke", (node) => colorOf(node.group))
       .attr("stroke-width", 1.8)
       .attr("opacity", 0);
 
@@ -418,9 +428,9 @@ export function GraphView({ title, graph, selectedNodeId, onNodeSelect }: Props)
       .append("circle")
       .attr("class", "gv-dot")
       .attr("r", (node) => radiusFor(node))
-      .attr("fill", (node) => groupColor(node.group))
+      .attr("fill", (node) => colorOf(node.group))
       .attr("fill-opacity", 1)
-      .attr("stroke", "#ffffff")
+      .attr("stroke", "var(--viz-halo)")
       .attr("stroke-width", 2);
 
     nodeGroups
@@ -428,14 +438,14 @@ export function GraphView({ title, graph, selectedNodeId, onNodeSelect }: Props)
       .attr("class", "gv-label")
       .attr("y", (node) => radiusFor(node) + 17)
       .attr("text-anchor", "middle")
-      .attr("fill", "#1a1a1a")
+      .attr("fill", "var(--viz-label)")
       .attr("font-size", 13)
       .attr("font-weight", 500)
       .attr("font-family", "var(--font-mono)")
       .attr("pointer-events", "none")
       // Halo so labels stay legible where they overlap edges or hulls.
       .attr("paint-order", "stroke")
-      .attr("stroke", "#ffffff")
+      .attr("stroke", "var(--viz-halo)")
       .attr("stroke-width", 3.5)
       .attr("stroke-linejoin", "round")
       .text((node) => (node.label.length > 22 ? `${node.label.slice(0, 21)}…` : node.label));
@@ -546,22 +556,20 @@ export function GraphView({ title, graph, selectedNodeId, onNodeSelect }: Props)
 
     svg.on("click", () => onNodeSelect?.(null));
 
-    /* Fit the rendered extent into view */
+    /* Fit the rendered extent into view, against the stage's real size. */
     const xs = nodes.map((node) => node.x ?? 0);
     const ys = nodes.map((node) => node.y ?? 0);
     const minX = Math.min(...xs) - 60;
     const maxX = Math.max(...xs) + 60;
     const minY = Math.min(...ys) - 60;
     const maxY = Math.max(...ys) + 60;
+    const { w, h } = sizeRef.current;
     const scale = Math.min(
       1.4,
-      Math.max(0.2, 0.92 / Math.max((maxX - minX) / WIDTH, (maxY - minY) / HEIGHT)),
+      Math.max(0.2, 0.92 / Math.max((maxX - minX) / w, (maxY - minY) / h)),
     );
     const initial = d3.zoomIdentity
-      .translate(
-        WIDTH / 2 - ((minX + maxX) / 2) * scale,
-        HEIGHT / 2 - ((minY + maxY) / 2) * scale,
-      )
+      .translate(w / 2 - ((minX + maxX) / 2) * scale, h / 2 - ((minY + maxY) / 2) * scale)
       .scale(scale);
     svg.call(zoom.transform, initial);
 
@@ -575,6 +583,72 @@ export function GraphView({ title, graph, selectedNodeId, onNodeSelect }: Props)
     // so changing it never re-runs the (expensive) layout.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, onNodeSelect]);
+
+  /* ── Re-fit when the stage resizes ──────────────────────────────────
+     Re-running the layout would scramble the settled graph, so this reuses
+     the positions already computed and only re-centres the camera. */
+
+  useEffect(() => {
+    const svgEl = svgRef.current;
+    if (!svgEl || !zoomRef.current || positionsRef.current.size === 0) return;
+
+    const points = [...positionsRef.current.values()];
+    const xs = points.map((p) => p.x);
+    const ys = points.map((p) => p.y);
+    const minX = Math.min(...xs) - 60;
+    const maxX = Math.max(...xs) + 60;
+    const minY = Math.min(...ys) - 60;
+    const maxY = Math.max(...ys) + 60;
+    const scale = Math.min(
+      1.4,
+      Math.max(0.2, 0.92 / Math.max((maxX - minX) / size.w, (maxY - minY) / size.h)),
+    );
+
+    d3.select(svgEl).call(
+      zoomRef.current.transform,
+      d3.zoomIdentity
+        .translate(
+          size.w / 2 - ((minX + maxX) / 2) * scale,
+          size.h / 2 - ((minY + maxY) / 2) * scale,
+        )
+        .scale(scale),
+    );
+  }, [size]);
+
+  /* ── Recolour on theme change ───────────────────────────────────────
+     Halos and label fills ride CSS variables and update on their own; the
+     group hues cannot, because they are data-derived. Repaint them in place
+     so a theme switch never disturbs the settled layout or pinned nodes. */
+
+  useEffect(() => {
+    const svgEl = svgRef.current;
+    if (!svgEl) return;
+    const svg = d3.select(svgEl);
+
+    svg
+      .selectAll<SVGCircleElement, SimNode>(".gv-dot")
+      .attr("fill", (node) => paletteColor(node.group, theme));
+    svg
+      .selectAll<SVGCircleElement, SimNode>(".gv-ring")
+      .attr("stroke", (node) => paletteColor(node.group, theme));
+    svg
+      .selectAll<SVGPathElement, { group: string }>(".gv-hull")
+      .attr("fill", (d) => paletteColor(d.group, theme))
+      .attr("stroke", (d) => paletteColor(d.group, theme));
+    svg
+      .selectAll<SVGTextElement, { group: string }>(".gv-group-label")
+      .attr("fill", (d) => paletteColor(d.group, theme));
+    svg.selectAll<SVGPathElement, unknown>(".gv-link").each(function () {
+      const path = d3.select(this);
+      const group = path.attr("data-group");
+      if (group) path.attr("stroke", paletteColor(group, theme));
+    });
+    svg.selectAll<SVGMarkerElement, unknown>("marker").each(function () {
+      const marker = d3.select(this);
+      const group = marker.attr("data-group");
+      if (group) marker.select("path").attr("fill", paletteColor(group, theme));
+    });
+  }, [theme, visible]);
 
   /* ── Selection highlighting (cheap, no re-layout) ──────────────────── */
 
@@ -621,13 +695,14 @@ export function GraphView({ title, graph, selectedNodeId, onNodeSelect }: Props)
     if (!svgEl || !zoomRef.current || !nodeId) return;
     const position = positionsRef.current.get(nodeId);
     if (!position) return;
+    const { w, h } = sizeRef.current;
     d3.select(svgEl)
       .transition()
       .duration(450)
       .call(
         zoomRef.current.transform,
         d3.zoomIdentity
-          .translate(WIDTH / 2, HEIGHT / 2)
+          .translate(w / 2, h / 2)
           .scale(1.5)
           .translate(-position.x, -position.y),
       );
@@ -711,7 +786,7 @@ export function GraphView({ title, graph, selectedNodeId, onNodeSelect }: Props)
               onClick={() => toggleGroup(group)}
               title={hidden ? `Show ${group}` : `Hide ${group}`}
             >
-              <i style={{ background: groupColor(group) }} />
+              <i style={{ background: colorOf(group) }} />
               {group}
             </button>
           );
@@ -733,10 +808,10 @@ export function GraphView({ title, graph, selectedNodeId, onNodeSelect }: Props)
         </div>
       )}
 
-      <div className="gv-stage">
+      <div className="gv-stage" ref={stageRef}>
         <svg
           ref={svgRef}
-          viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+          viewBox={`0 0 ${size.w} ${size.h}`}
           preserveAspectRatio="xMidYMid meet"
           role="img"
           aria-label={`${title}: ${visible.nodes.length} files and ${visible.edges.length} dependencies`}
@@ -754,7 +829,7 @@ export function GraphView({ title, graph, selectedNodeId, onNodeSelect }: Props)
               <div className="gv-inspector-head">
                 <span
                   className="gv-inspector-dot"
-                  style={{ background: groupColor(selectedNode.group) }}
+                  style={{ background: colorOf(selectedNode.group) }}
                 />
                 <strong>{selectedNode.label}</strong>
                 <button
@@ -771,7 +846,7 @@ export function GraphView({ title, graph, selectedNodeId, onNodeSelect }: Props)
               <div className="gv-inspector-metrics">
                 <div>
                   <span>Group</span>
-                  <strong style={{ color: groupColor(selectedNode.group) }}>
+                  <strong style={{ color: colorOf(selectedNode.group) }}>
                     {selectedNode.group}
                   </strong>
                 </div>
@@ -815,7 +890,7 @@ export function GraphView({ title, graph, selectedNodeId, onNodeSelect }: Props)
                         centerOn(neighbor.id);
                       }}
                     >
-                      <i style={{ background: groupColor(neighbor.group) }} />
+                      <i style={{ background: colorOf(neighbor.group) }} />
                       {neighbor.label}
                     </button>
                   ))}
