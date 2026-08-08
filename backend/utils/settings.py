@@ -81,7 +81,7 @@ class Settings:
     nim_api_key_4: str = os.getenv("NIM_API_KEY_4", "")
     nim_base_url: str = os.getenv("NIM_BASE_URL", "https://integrate.api.nvidia.com")
     nim_model_neotron: str = _str_env("NIM_MODEL_NEOTRON", "mistralai/mistral-nemotron")
-    nim_model_qwen_docs: str = _str_env("NIM_MODEL_QWEN_DOCS", "google/gemma-4-31b-it")
+    nim_model_qwen_docs: str = _str_env("NIM_MODEL_QWEN_DOCS", "meta/llama-3.1-8b-instruct")
     nim_model_qwen_review: str = _str_env("NIM_MODEL_QWEN_REVIEW", "meta/llama-3.1-8b-instruct")
     nim_request_timeout_seconds: int = _int_env("NIM_REQUEST_TIMEOUT_SECONDS", 60, minimum=10)
     nim_max_retries: int = _int_env("NIM_MAX_RETRIES", 3, minimum=1)
