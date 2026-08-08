@@ -46,6 +46,11 @@ def _bool_env(name: str, default: bool) -> bool:
     return raw in {"1", "true", "yes", "on"}
 
 
+def _str_env(name: str, default: str) -> str:
+    raw = os.getenv(name, "").strip()
+    return raw if raw else default
+
+
 @dataclass(frozen=True)
 class Settings:
     backend_host: str = os.getenv("BACKEND_HOST", "0.0.0.0")
@@ -75,9 +80,9 @@ class Settings:
     nim_api_key_3: str = os.getenv("NIM_API_KEY_3", "")
     nim_api_key_4: str = os.getenv("NIM_API_KEY_4", "")
     nim_base_url: str = os.getenv("NIM_BASE_URL", "https://integrate.api.nvidia.com")
-    nim_model_neotron: str = os.getenv("NIM_MODEL_NEOTRON", "meta/llama-3.3-70b-instruct")
-    nim_model_qwen_docs: str = os.getenv("NIM_MODEL_QWEN_DOCS", "meta/llama-3.3-70b-instruct")
-    nim_model_qwen_review: str = os.getenv("NIM_MODEL_QWEN_REVIEW", "meta/llama-3.1-8b-instruct")
+    nim_model_neotron: str = _str_env("NIM_MODEL_NEOTRON", "mistralai/mistral-nemotron")
+    nim_model_qwen_docs: str = _str_env("NIM_MODEL_QWEN_DOCS", "google/gemma-4-31b-it")
+    nim_model_qwen_review: str = _str_env("NIM_MODEL_QWEN_REVIEW", "meta/llama-3.1-8b-instruct")
     nim_request_timeout_seconds: int = _int_env("NIM_REQUEST_TIMEOUT_SECONDS", 60, minimum=10)
     nim_max_retries: int = _int_env("NIM_MAX_RETRIES", 3, minimum=1)
     nim_max_tokens: int = _int_env("NIM_MAX_TOKENS", 512, minimum=128)
