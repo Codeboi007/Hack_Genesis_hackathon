@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from backend.services.nim_client import get_nim_pool
+from backend.services.nim_client import get_docs_pool
 from backend.services.structure_service import StructureService
 from backend.utils.settings import settings
 from docs.graph_builder import build_dependency_graph, build_execution_flowchart, build_knowledge_graph
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class DocumentationService:
     def __init__(self, rag: RAGPipeline) -> None:
         self.rag = rag
-        self.nim = get_nim_pool()
+        self.nim = get_docs_pool()  # docs/README → google/gemma-4-31b-it on all 4 keys
         self.structure = StructureService()
 
     async def generate(self, parsed_files: list[dict[str, Any]], persona: str, repo_name: str = "") -> dict[str, Any]:

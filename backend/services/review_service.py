@@ -7,7 +7,7 @@ from typing import Any
 
 from agents.base_agent import AgentFinding, SEVERITY_ORDER
 from agents.orchestrator import ReviewOrchestrator
-from backend.services.nim_client import get_nim_pool
+from backend.services.nim_client import get_review_pool, get_docs_pool
 from backend.services.persona import persona_explanation_suffix, persona_fix_suffix, persona_style
 from backend.services.review_prompts import (
     COMMON_CONSTRAINTS,
@@ -32,8 +32,8 @@ class ReviewService:
     def __init__(self, rag: RAGPipeline) -> None:
         self.rag = rag
         self.orchestrator = ReviewOrchestrator()
-        self.nim = get_nim_pool()    # round-robin pool across all 4 keys
-        self.nim_docs = self.nim      # same pool — no separate docs client
+        self.nim = get_review_pool()    # review agents → meta/llama-3.1-8b-instruct on all 4 keys
+        self.nim_docs = get_docs_pool()  # file summaries → google/gemma-4-31b-it on all 4 keys
         self.structure = StructureService()
 
     # ── Public entrypoints ────────────────────────────────────────────────────

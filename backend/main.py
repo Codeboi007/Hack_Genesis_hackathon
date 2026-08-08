@@ -109,16 +109,16 @@ async def on_startup() -> None:
     ])
 
     logger.info(
-        "Server started | host=%s port=%s keep_workspaces=%s | models: review=%s docs=%s neotron=%s | "
-        "pool_keys=%d/4 [K1: %s, K2: %s, K3: %s, K4: %s, Fallback: %s]",
+        "Server started | host=%s port=%s | "
+        "ReviewPool(model=%s) DocsPool(model=%s) StructurePool(model=%s) | "
+        "keys=%d/4 [K1: %s, K2: %s, K3: %s, K4: %s]",
         settings.backend_host,
         settings.backend_port,
-        settings.keep_workspaces,
         settings.nim_model_qwen_review,
         settings.nim_model_qwen_docs,
         settings.nim_model_neotron,
         active_count,
-        k1, k2, k3, k4, fallback_k,
+        k1, k2, k3, k4,
     )
 
 
